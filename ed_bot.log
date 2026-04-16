@@ -1,0 +1,4 @@
+2026-04-16 12:59:52,954 [INFO] ed.bot: Ed bot starting...
+2026-04-16 12:59:56,417 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8319071299:AAGF8XGhcEkpNtn8Neozt3_xO3H_mxjZYNc/getMe "HTTP/1.1 200 OK"
+2026-04-16 12:59:56,464 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8319071299:AAGF8XGhcEkpNtn8Neozt3_xO3H_mxjZYNc/deleteWebhook "HTTP/1.1 200 OK"
+2026-04-16 12:59:56,466 [INFO] telegram.ext.Application: Application started

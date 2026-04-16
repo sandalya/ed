@@ -1,0 +1,14 @@
+[Unit]
+Description=Ed QA Agent — Telegram bot interface
+After=network.target
+
+[Service]
+Type=simple
+User=sashok
+WorkingDirectory=/home/sashok/.openclaw/workspace/ed
+ExecStart=/home/sashok/.openclaw/workspace/ed/venv/bin/python3 bot.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

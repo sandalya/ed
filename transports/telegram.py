@@ -54,6 +54,13 @@ class TelegramTransport(BaseTransport):
         self._responses.clear()
         self._response_event.clear()
 
+        # Telethon не може відправити порожнє повідомлення
+        if not text or not text.strip():
+            return BotResponse(
+                text="", response_time=0,
+                error="Cannot send empty message via Telegram",
+            )
+
         start_time = time.time()
         await self.client.send_message(self._bot_entity, text)
         log.info(f"Sent: {text[:80]}")

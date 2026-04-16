@@ -57,7 +57,9 @@ class TestRunner:
 
             log.info(f"[{i+1}/{len(cases)}] {case['id']}")
 
-            if reset_between_tests:
+            # Reset тільки для conversation тестів або якщо явно запитано
+            needs_reset = case.get("conversation") or case.get("reset_before", False)
+            if reset_between_tests and needs_reset:
                 await self.transport.reset_conversation()
                 await asyncio.sleep(1)
 

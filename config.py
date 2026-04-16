@@ -40,6 +40,9 @@ MODEL_COSTS = {
     "claude-opus-4-20250514": {"input": 15.00, "output": 75.00},
 }
 
+# --- Ed Bot interface ---
+ED_BOT_TOKEN = os.getenv("ED_BOT_TOKEN", "")
+
 # --- Paths ---
 REPORTS_DIR = BASE_DIR / "reports" / "history"
 SUITES_DIR = BASE_DIR / "suites" / "data"
