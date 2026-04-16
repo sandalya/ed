@@ -1,0 +1,9 @@
+venv/
+.env
+__pycache__/
+*.pyc
+*.pyo
+ed.log
+data/telethon_session/*.session
+data/telethon_session/*.session-journal
+reports/history/*.json
