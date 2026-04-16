@@ -41,6 +41,39 @@ def format_terminal_report(result: RunResult) -> str:
     return "\n".join(lines)
 
 
+def format_verbose_report(result: RunResult) -> str:
+    """Детальний звіт для LLM-оркестратора: питання → відповідь → вердикт."""
+    lines = [
+        "", "=" * 70,
+        f" ED VERBOSE REPORT — {result.timestamp}",
+        "=" * 70, "",
+    ]
+    for r in result.results:
+        case = r["test_case"]
+        resp = r["bot_response"]
+        judge = r["judge_result"]
+        verdict = judge["overall_verdict"]
+        icon = {"pass": "✅", "warn": "⚠️ ", "fail": "❌", "error": "💥"}.get(verdict, "💥")
+
+        lines.append(f"{icon} [{case['id']}] {verdict.upper()}")
+        lines.append(f"  ПИТАННЯ: {case.get('message', '')[:200]}")
+        lines.append(f"  ВІДПОВІДЬ: {(resp.get('text') or '[порожньо]')[:400]}")
+        if resp.get('error'):
+            lines.append(f"  ERROR: {resp['error']}")
+        lines.append(f"  СУДДЯ: {judge['summary']}")
+        for cr in judge.get("criteria", []):
+            if cr["verdict"] in ("fail", "warn"):
+                cr_icon = "❌" if cr["verdict"] == "fail" else "⚠️ "
+                lines.append(f"    {cr_icon} {cr['name']}: {cr['reason']}")
+        if judge.get("critical_issues"):
+            for ci in judge["critical_issues"]:
+                lines.append(f"    🚨 {ci}")
+        lines.append("")
+
+    lines.append("=" * 70)
+    return "\n".join(lines)
+
+
 def format_telegram_report(result: RunResult) -> str:
     if result.failed > 0 or result.critical_failures:
         status = "🔴"
