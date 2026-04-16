@@ -1,0 +1,5 @@
+{
+  "name": "full_checkout",
+  "description": "Повний шлях клієнта від привітання до замовлення",
+  "blocks": ["smoke", "catalog", "pricing", "orders"]
+}

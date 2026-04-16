@@ -1,0 +1,22 @@
+[
+  {
+    "id": "order_flow_01",
+    "category": "order",
+    "conversation": true,
+    "messages": [
+      {"text": "Хочу замовити каблучку з тризубом", "wait_for_response": true},
+      {"text": "Розмір 18, срібло 925", "wait_for_response": true},
+      {"text": "Скільки це буде коштувати і як довго чекати?", "wait_for_response": true}
+    ],
+    "context": "Повний флоу замовлення від запиту до деталей",
+    "tags": ["order", "multi_turn", "trident"],
+    "edge_case": false,
+    "expected_behavior": {
+      "should_guide_naturally": true,
+      "should_ask_clarifications": true,
+      "should_provide_price": true,
+      "should_mention_timeline": true,
+      "should_not_pressure": true
+    }
+  }
+]

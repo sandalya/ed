@@ -1,0 +1,44 @@
+[
+  {
+    "id": "greeting_01",
+    "category": "smalltalk",
+    "message": "Привіт",
+    "context": "Просте привітання, перший контакт",
+    "tags": ["greeting", "first_contact"],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_be_welcoming": true,
+      "should_not_be_pushy": true
+    }
+  },
+  {
+    "id": "thanks_short_01",
+    "category": "smalltalk",
+    "message": "Дякую за інформацію!",
+    "context": "Клієнт дякує — бот має відповісти коротко, не розписувати",
+    "tags": ["thanks", "short_response"],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_be_brief": true,
+      "should_not_oversell": true
+    }
+  },
+  {
+    "id": "russian_language_01",
+    "category": "smalltalk",
+    "message": "Здравствуйте, сколько стоит цепочка?",
+    "context": "Клієнт пише російською — бот має відповісти українською",
+    "tags": ["russian", "language", "pricing"],
+    "edge_case": true,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_understand_russian": true,
+      "should_not_switch_to_russian": true
+    }
+  }
+]

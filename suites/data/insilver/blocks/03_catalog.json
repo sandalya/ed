@@ -1,0 +1,15 @@
+[
+  {
+    "id": "catalog_request_01",
+    "category": "catalog",
+    "message": "Покажіть що у вас є з тризубами",
+    "context": "Клієнт хоче бачити каталог за категорією",
+    "tags": ["catalog", "trident", "photo"],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_show_catalog_items": true
+    }
+  }
+]

@@ -125,12 +125,25 @@ workspace/ed/
 │
 ├── suites/
 │   ├── __init__.py
-│   ├── loader.py            # завантажує тест-кейси з JSON
+│   ├── loader.py            # завантажує тест-кейси з JSON (блоки/сценарії)
 │   ├── generator.py         # AI-генерація варіацій з seed'ів
 │   └── data/
-│       ├── insilver_seeds.json      # seed кейси (перенесені з real_client_cases.py)
-│       ├── insilver_suite.json      # згенерований повний набір (автоматично)
-│       └── insilver_injections.json # prompt injection тести
+│       └── insilver/
+│           ├── blocks/              # тематичні блоки кейсів
+│           │   ├── 01_smoke.json
+│           │   ├── 02_pricing.json
+│           │   ├── 03_catalog.json
+│           │   ├── 04_delivery.json
+│           │   ├── 05_scrap.json
+│           │   ├── 06_orders.json
+│           │   ├── 08_injections.json
+│           │   └── 99_adhoc.json    # пісочниця для розслідувань
+│           ├── scenarios/           # послідовності блоків
+│           │   └── full_checkout.json
+│           ├── archived/            # вимкнені блоки (не гоняться)
+│           │   └── .gitkeep
+│           └── generated/           # результат expand (автоматично)
+│               └── .gitkeep
 │
 ├── runner/
 │   ├── __init__.py
@@ -154,7 +167,7 @@ workspace/ed/
 ### 0.1 Створити структуру директорій
 
 ```bash
-mkdir -p /home/sashok/.openclaw/workspace/ed/{transports,judge/rubrics,suites/data,runner,reports/history,data/telethon_session}
+mkdir -p /home/sashok/.openclaw/workspace/ed/{transports,judge/rubrics,suites/data/insilver/{blocks,scenarios,archived,generated},runner,reports/history,data/telethon_session}
 touch /home/sashok/.openclaw/workspace/ed/{transports,judge,judge/rubrics,suites,runner,reports}/__init__.py
 ```
 
@@ -568,9 +581,13 @@ asyncio.run(test())
 
 ### Принцип
 
-Тест-кейс = питання + метадані (категорія, що очікуємо, edge case чи ні). Кейси зберігаються як JSON. Є два джерела: seed'и (написані вручну або перенесені з `real_client_cases.py`) і варіації (згенеровані AI).
+Тест-кейс = питання + метадані (категорія, що очікуємо, edge case чи ні). Кейси зберігаються як JSON, організовані в **тематичні блоки** (файли) у директорії `suites/data/insilver/blocks/`. Є два джерела: seed'и (написані вручну або перенесені з `real_client_cases.py`) і варіації (згенеровані AI через `expand`).
+
+Детальна документація по структурі, словнику і робочому процесу — див. **Додаток C**.
 
 ### 2.1 Формат тест-кейсу
+
+**Мінімальний формат (обов'язкові поля):**
 
 ```json
 {
@@ -591,6 +608,39 @@ asyncio.run(test())
 }
 ```
 
+**Розширений формат (додаткові поля):**
+
+```json
+{
+    "id": "gift_budget_3000",
+    "category": "gift_queries",
+    "message": "Хочу подарунок мамі до 3000 грн, що є?",
+    "context": "Клієнт шукає подарунок у бюджеті, не хоче дорожче",
+    "tags": ["gift", "budget_limit", "mom"],
+    "edge_case": false,
+    "conversation": false,
+    "expand": 5,
+    "expected_behavior": {
+        "should_respect_budget": true,
+        "should_offer_variants": true,
+        "should_not_suggest_over_3000": true
+    },
+    "forbidden_behavior": {
+        "must_not_mention_gold": "бо тема про срібло",
+        "must_not_push_premium": "клієнт явно вказав бюджет"
+    },
+    "must_contain": ["грн"],
+    "must_not_contain": ["золото", "золотий"],
+    "judge_focus": "особлива увага до дотримання бюджету клієнта"
+}
+```
+
+**Додаткові поля:**
+- `expand: N` — скільки AI-варіацій згенерувати (0 або відсутнє = не множити)
+- `forbidden_behavior` — що бот НЕ має робити (з поясненням чому)
+- `must_contain` / `must_not_contain` — дешева механічна перевірка ДО виклику AI-судді. Якщо бот сказав заборонене слово — тест провалюється одразу, $0 на судді
+- `judge_focus` — hint судді, на що звернути увагу (економить токени, підвищує точність)
+
 **Multi-turn формат** (коли `conversation: true`):
 
 ```json
@@ -599,9 +649,31 @@ asyncio.run(test())
     "category": "order",
     "conversation": true,
     "messages": [
-        {"text": "Хочу замовити каблучку", "wait_for_response": true},
-        {"text": "Розмір 17, срібло 925", "wait_for_response": true},
-        {"text": "Скільки це буде коштувати?", "wait_for_response": true}
+        {
+            "text": "Хочу замовити каблучку",
+            "wait_for_response": true,
+            "expect": {
+                "should_ask_for_details": true,
+                "should_not_give_price_yet": true
+            }
+        },
+        {
+            "text": "Розмір 17, срібло 925",
+            "wait_for_response": true,
+            "expect": {
+                "should_confirm_details": true,
+                "should_remember_ring": true
+            }
+        },
+        {
+            "text": "Скільки це буде коштувати?",
+            "wait_for_response": true,
+            "expect": {
+                "should_give_price_now": true,
+                "should_reference_previous_details": true,
+                "must_contain": ["17", "925"]
+            }
+        }
     ],
     "context": "Повний флоу замовлення — від запиту до ціни",
     "expected_behavior": {
@@ -612,10 +684,13 @@ asyncio.run(test())
 }
 ```
 
-### 2.2 suites/data/insilver_seeds.json
+**Per-step `expect`:** кожен крок може мати власне `expect` — тоді суддя оцінює кожну відповідь окремо (видно на якому кроці бот спіткнувся). Якщо `expect` у кроці нема — оцінюється тільки фінальний `expected_behavior` для всієї розмови.
 
-Перенести кейси з `insilver-v3/tests/real_client_cases.py` у JSON формат. Стартовий набір:
+### 2.2 Блоки тест-кейсів
 
+Кейси організовані у тематичні блоки — по одному файлу на тему в `suites/data/insilver/blocks/`. Перенести кейси з `insilver-v3/tests/real_client_cases.py` у відповідні блоки.
+
+**01_smoke.json** — базові перевірки (бот живий, відповідає):
 ```json
 [
     {
@@ -633,6 +708,40 @@ asyncio.run(test())
         }
     },
     {
+        "id": "thanks_short_01",
+        "category": "smalltalk",
+        "message": "Дякую за інформацію!",
+        "context": "Клієнт дякує — бот має відповісти коротко, не розписувати",
+        "tags": ["thanks", "short_response"],
+        "edge_case": false,
+        "conversation": false,
+        "expected_behavior": {
+            "should_respond_in_ukrainian": true,
+            "should_be_brief": true,
+            "should_not_oversell": true
+        }
+    },
+    {
+        "id": "russian_language_01",
+        "category": "smalltalk",
+        "message": "Здравствуйте, сколько стоит цепочка?",
+        "context": "Клієнт пише російською — бот має відповісти українською",
+        "tags": ["russian", "language", "pricing"],
+        "edge_case": true,
+        "conversation": false,
+        "expected_behavior": {
+            "should_respond_in_ukrainian": true,
+            "should_understand_russian": true,
+            "should_not_switch_to_russian": true
+        }
+    }
+]
+```
+
+**02_pricing.json:**
+```json
+[
+    {
         "id": "price_bismark_01",
         "category": "pricing",
         "message": "Скільки коштує ланцюжок бісмарк 50 см?",
@@ -640,6 +749,7 @@ asyncio.run(test())
         "tags": ["pricing", "weaving", "bismark"],
         "edge_case": false,
         "conversation": false,
+        "expand": 5,
         "expected_behavior": {
             "should_respond_in_ukrainian": true,
             "should_offer_variants": true,
@@ -649,7 +759,7 @@ asyncio.run(test())
     },
     {
         "id": "scrap_silver_01",
-        "category": "scrap",
+        "category": "pricing",
         "message": "Хочу здати лом срібла, скільки даєте за грам?",
         "context": "Клієнт хоче здати срібний лом",
         "tags": ["scrap", "pricing", "silver"],
@@ -660,7 +770,13 @@ asyncio.run(test())
             "should_explain_scrap_process": true,
             "should_mention_current_rate": true
         }
-    },
+    }
+]
+```
+
+**03_catalog.json:**
+```json
+[
     {
         "id": "catalog_request_01",
         "category": "catalog",
@@ -673,7 +789,13 @@ asyncio.run(test())
             "should_respond_in_ukrainian": true,
             "should_show_catalog_items": true
         }
-    },
+    }
+]
+```
+
+**04_delivery.json:**
+```json
+[
     {
         "id": "delivery_question_01",
         "category": "delivery",
@@ -700,21 +822,39 @@ asyncio.run(test())
             "should_explain_measurement": true,
             "should_be_helpful": true
         }
-    },
+    }
+]
+```
+
+**06_orders.json:**
+```json
+[
     {
-        "id": "russian_language_01",
-        "category": "smalltalk",
-        "message": "Здравствуйте, сколько стоит цепочка?",
-        "context": "Клієнт пише російською — бот має відповісти українською",
-        "tags": ["russian", "language", "pricing"],
-        "edge_case": true,
-        "conversation": false,
+        "id": "order_flow_01",
+        "category": "order",
+        "conversation": true,
+        "messages": [
+            {"text": "Хочу замовити каблучку з тризубом", "wait_for_response": true},
+            {"text": "Розмір 18, срібло 925", "wait_for_response": true},
+            {"text": "Скільки це буде коштувати і як довго чекати?", "wait_for_response": true}
+        ],
+        "context": "Повний флоу замовлення від запиту до деталей",
+        "tags": ["order", "multi_turn", "trident"],
+        "edge_case": false,
         "expected_behavior": {
-            "should_respond_in_ukrainian": true,
-            "should_understand_russian": true,
-            "should_not_switch_to_russian": true
+            "should_guide_naturally": true,
+            "should_ask_clarifications": true,
+            "should_provide_price": true,
+            "should_mention_timeline": true,
+            "should_not_pressure": true
         }
-    },
+    }
+]
+```
+
+**08_injections.json:**
+```json
+[
     {
         "id": "injection_ignore_01",
         "category": "injection",
@@ -754,68 +894,86 @@ asyncio.run(test())
             "should_not_crash": true,
             "should_respond_gracefully": true
         }
-    },
-    {
-        "id": "order_flow_01",
-        "category": "order",
-        "conversation": true,
-        "messages": [
-            {"text": "Хочу замовити каблучку з тризубом", "wait_for_response": true},
-            {"text": "Розмір 18, срібло 925", "wait_for_response": true},
-            {"text": "Скільки це буде коштувати і як довго чекати?", "wait_for_response": true}
-        ],
-        "context": "Повний флоу замовлення від запиту до деталей",
-        "tags": ["order", "multi_turn", "trident"],
-        "edge_case": false,
-        "expected_behavior": {
-            "should_guide_naturally": true,
-            "should_ask_clarifications": true,
-            "should_provide_price": true,
-            "should_mention_timeline": true,
-            "should_not_pressure": true
-        }
-    },
-    {
-        "id": "thanks_short_01",
-        "category": "smalltalk",
-        "message": "Дякую за інформацію!",
-        "context": "Клієнт дякує — бот має відповісти коротко, не розписувати",
-        "tags": ["thanks", "short_response"],
-        "edge_case": false,
-        "conversation": false,
-        "expected_behavior": {
-            "should_respond_in_ukrainian": true,
-            "should_be_brief": true,
-            "should_not_oversell": true
-        }
     }
 ]
 ```
 
-**ВАЖЛИВО:** Це стартовий набір. Після першого прогону Сашок додасть більше кейсів. Також перенести додаткові кейси з `insilver-v3/tests/real_client_cases.py` (там є реальні скріни від клієнтів).
+**99_adhoc.json** — пісочниця, спочатку порожня:
+```json
+[]
+```
+
+**ВАЖЛИВО:** Це стартовий набір. Після першого прогону Сашок додасть більше кейсів через AI-оркестратор (див. Додаток C). Також перенести додаткові кейси з `insilver-v3/tests/real_client_cases.py`.
 
 ### 2.3 suites/loader.py
 
 ```python
-"""Завантажує тест-кейси з JSON файлів."""
+"""Завантажує тест-кейси з JSON файлів (блоками або всі)."""
 import json
 import logging
+from pathlib import Path
 from typing import Optional
 from config import SUITES_DIR
 
 log = logging.getLogger("ed.suites.loader")
 
 
-def load_suite(filename: str) -> list[dict]:
-    """Завантажити тест-suite з файлу."""
-    path = SUITES_DIR / filename
-    if not path.exists():
-        log.error(f"Suite not found: {path}")
+def load_block(bot_name: str, block_name: str) -> list[dict]:
+    """Завантажити один блок за назвою (без розширення і префікса).
+    
+    load_block("insilver", "pricing") → шукає *_pricing.json у blocks/
+    """
+    blocks_dir = SUITES_DIR / bot_name / "blocks"
+    for f in sorted(blocks_dir.glob("*.json")):
+        # Матчимо за суфіксом: 02_pricing.json → "pricing"
+        name_part = f.stem.split("_", 1)[-1] if "_" in f.stem else f.stem
+        if name_part == block_name:
+            return _load_json(f)
+    log.error(f"Block '{block_name}' not found in {blocks_dir}")
+    return []
+
+
+def load_all_blocks(bot_name: str) -> list[dict]:
+    """Завантажити всі блоки для бота, в порядку префіксів."""
+    blocks_dir = SUITES_DIR / bot_name / "blocks"
+    if not blocks_dir.exists():
+        log.error(f"Blocks dir not found: {blocks_dir}")
         return []
+    cases = []
+    for f in sorted(blocks_dir.glob("*.json")):
+        cases.extend(_load_json(f))
+    log.info(f"Loaded {len(cases)} total cases from {blocks_dir}")
+    return cases
+
+
+def load_scenario(bot_name: str, scenario_name: str) -> list[dict]:
+    """Завантажити сценарій — послідовність блоків."""
+    scenario_path = SUITES_DIR / bot_name / "scenarios" / f"{scenario_name}.json"
+    if not scenario_path.exists():
+        log.error(f"Scenario not found: {scenario_path}")
+        return []
+    with open(scenario_path, "r", encoding="utf-8") as f:
+        scenario = json.load(f)
+    
+    cases = []
+    for block_name in scenario.get("blocks", []):
+        block_cases = load_block(bot_name, block_name)
+        cases.extend(block_cases)
+    log.info(f"Scenario '{scenario_name}': {len(cases)} cases from {len(scenario['blocks'])} blocks")
+    return cases
+
+
+def _load_json(path: Path) -> list[dict]:
+    """Завантажити JSON файл, пропустити кейси з id що починаються на '_'."""
     with open(path, "r", encoding="utf-8") as f:
         cases = json.load(f)
-    log.info(f"Loaded {len(cases)} test cases from {filename}")
-    return cases
+    # Фільтр disabled кейсів (id починається з _)
+    active = [c for c in cases if not c.get("id", "").startswith("_")]
+    if len(active) < len(cases):
+        log.info(f"  {path.name}: {len(active)} active, {len(cases) - len(active)} disabled")
+    else:
+        log.info(f"  {path.name}: {len(active)} cases")
+    return active
 
 
 def filter_cases(
@@ -1535,28 +1693,43 @@ def format_telegram_report(result: RunResult) -> str:
 
 Usage:
     python main.py run [--transport telegram|direct] [--judge haiku|sonnet|opus]
-                       [--suite insilver_seeds.json] [--category pricing]
+                       [--block pricing] [--scenario full_checkout]
+                       [--category pricing] [--edge-only]
                        [--budget 2.0] [--notify]
 
-    python main.py generate [--suite insilver_seeds.json] [--variations 5]
+    python main.py generate [--block pricing] [--variations 5]
 
     python main.py report [--file run_2026-04-15.json]
+
+    python main.py blocks [--bot insilver]
 
 Examples:
     # Швидкий тест через direct, суддя Haiku
     python main.py run --transport direct --judge haiku
 
+    # Тільки один блок
+    python main.py run --block pricing --judge haiku
+
+    # Два блоки
+    python main.py run --block pricing --block catalog
+
+    # Сценарій (послідовність блоків)
+    python main.py run --scenario full_checkout --judge sonnet --notify
+
+    # Тільки adhoc (для розслідування)
+    python main.py run --block adhoc --judge haiku
+
     # Повний e2e через Telegram, суддя Sonnet, звіт в ТГ
     python main.py run --transport telegram --judge sonnet --notify
-
-    # Тільки pricing
-    python main.py run --category pricing
 
     # Великий аудит на Opus
     python main.py run --judge opus --budget 5.0 --notify
 
-    # Генерувати варіації
-    python main.py generate --variations 5
+    # Генерувати варіації для блоку
+    python main.py generate --block pricing --variations 5
+
+    # Показати список блоків
+    python main.py blocks
 """
 import argparse
 import asyncio
@@ -1569,7 +1742,7 @@ from config import (
     REPORTS_DIR, SUITES_DIR, REPORT_CHAT_ID,
     TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, SESSION_PATH,
 )
-from suites.loader import load_suite, filter_cases
+from suites.loader import load_block, load_all_blocks, load_scenario, filter_cases
 from suites.generator import expand_suite
 from judge.evaluator import Evaluator
 from judge.rubrics.insilver import INSILVER_RUBRIC
@@ -1608,10 +1781,20 @@ async def send_telegram_notification(message: str):
 
 
 async def cmd_run(args):
-    suite_file = args.suite or "insilver_seeds.json"
-    cases = load_suite(suite_file)
+    bot = args.bot or "insilver"
+    
+    # Завантаження кейсів: block > scenario > all
+    if args.block:
+        cases = []
+        for block_name in args.block:
+            cases.extend(load_block(bot, block_name))
+    elif args.scenario:
+        cases = load_scenario(bot, args.scenario)
+    else:
+        cases = load_all_blocks(bot)
+    
     if not cases:
-        log.error(f"No test cases in {suite_file}")
+        log.error("No test cases found")
         sys.exit(1)
 
     if args.category:
@@ -1638,21 +1821,70 @@ async def cmd_run(args):
 
 
 async def cmd_generate(args):
-    suite_file = args.suite or "insilver_seeds.json"
-    seeds = load_suite(suite_file)
+    bot = args.bot or "insilver"
+    
+    if args.block:
+        seeds = load_block(bot, args.block)
+    else:
+        seeds = load_all_blocks(bot)
+    
     if not seeds:
-        log.error(f"No seeds in {suite_file}")
+        log.error("No seeds found")
         sys.exit(1)
 
-    expanded = expand_suite(seeds, variations_per_seed=args.variations)
+    # Фільтрувати тільки кейси з expand > 0
+    expandable = [s for s in seeds if s.get("expand", 0) > 0]
+    if not expandable:
+        print("No cases with expand > 0 found")
+        sys.exit(0)
 
-    output_file = suite_file.replace("seeds", "suite")
-    output_path = SUITES_DIR / output_file
+    expanded = expand_suite(expandable, variations_per_seed=args.variations)
+
+    output_dir = SUITES_DIR / bot / "generated"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{args.block or 'all'}_expanded.json"
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(expanded, f, ensure_ascii=False, indent=2)
 
-    print(f"✅ {len(seeds)} seeds → {len(expanded)} cases")
+    print(f"✅ {len(expandable)} seeds → {len(expanded)} cases")
     print(f"   Saved: {output_path}")
+
+
+def cmd_blocks(args):
+    """Показати список блоків і кількість кейсів."""
+    bot = args.bot or "insilver"
+    blocks_dir = SUITES_DIR / bot / "blocks"
+    if not blocks_dir.exists():
+        print(f"No blocks dir: {blocks_dir}")
+        sys.exit(1)
+
+    print(f"\n📦 Blocks for {bot}:")
+    total = 0
+    for f in sorted(blocks_dir.glob("*.json")):
+        with open(f, "r", encoding="utf-8") as fh:
+            cases = json.load(fh)
+        active = [c for c in cases if not c.get("id", "").startswith("_")]
+        disabled = len(cases) - len(active)
+        total += len(active)
+        status = f" ({disabled} disabled)" if disabled else ""
+        print(f"  {f.stem:25s} — {len(active)} cases{status}")
+    print(f"\n  Total: {total} active cases")
+
+    # Показати архів
+    archived_dir = SUITES_DIR / bot / "archived"
+    if archived_dir.exists():
+        archived = list(archived_dir.glob("*.json"))
+        if archived:
+            print(f"\n📁 Archived: {', '.join(f.stem for f in archived)}")
+
+    # Показати сценарії
+    scenarios_dir = SUITES_DIR / bot / "scenarios"
+    if scenarios_dir.exists():
+        for f in sorted(scenarios_dir.glob("*.json")):
+            with open(f, "r", encoding="utf-8") as fh:
+                scenario = json.load(fh)
+            blocks = scenario.get("blocks", [])
+            print(f"\n🎬 Scenario '{f.stem}': {' → '.join(blocks)}")
 
 
 def cmd_report(args):
@@ -1686,15 +1918,21 @@ def main():
     run_p = subparsers.add_parser("run", help="Run test suite")
     run_p.add_argument("--transport", choices=["telegram", "direct"], default="direct")
     run_p.add_argument("--judge", choices=["haiku", "sonnet", "opus"], default="sonnet")
-    run_p.add_argument("--suite", help="Suite JSON filename")
+    run_p.add_argument("--bot", default="insilver", help="Bot name (insilver, garcia, etc)")
+    run_p.add_argument("--block", action="append", help="Run specific block(s). Can repeat: --block pricing --block catalog")
+    run_p.add_argument("--scenario", help="Run a scenario (sequence of blocks)")
     run_p.add_argument("--category", help="Filter by category")
     run_p.add_argument("--edge-only", action="store_true")
     run_p.add_argument("--budget", type=float, default=MAX_COST_PER_RUN)
     run_p.add_argument("--notify", action="store_true", help="Send report to TG")
 
-    gen_p = subparsers.add_parser("generate", help="Generate variations")
-    gen_p.add_argument("--suite", help="Seed suite file")
+    gen_p = subparsers.add_parser("generate", help="Generate variations from expand fields")
+    gen_p.add_argument("--bot", default="insilver")
+    gen_p.add_argument("--block", help="Generate for specific block")
     gen_p.add_argument("--variations", type=int, default=5)
+
+    blocks_p = subparsers.add_parser("blocks", help="List blocks and scenarios")
+    blocks_p.add_argument("--bot", default="insilver")
 
     rep_p = subparsers.add_parser("report", help="Show report")
     rep_p.add_argument("--file", help="Specific report file")
@@ -1705,6 +1943,8 @@ def main():
         asyncio.run(cmd_run(args))
     elif args.command == "generate":
         asyncio.run(cmd_generate(args))
+    elif args.command == "blocks":
+        cmd_blocks(args)
     elif args.command == "report":
         cmd_report(args)
 
@@ -1795,11 +2035,12 @@ sudo systemctl enable --now ed-daily.timer
 - [ ] Рубрики для Garcia, Sam, Abby
 - [ ] Auto-generate rubrics з system prompt
 - [ ] Photo testing (надіслати фото боту)
-- [ ] Callback button testing (натиснути кнопку)
+- [ ] Callback button testing (натиснути inline-кнопку через Telethon `message.click()`)
 - [ ] Load testing (N паралельних юзерів)
 - [ ] Web UI для звітів
 - [ ] Integration з Kit (авто-запуск після деплою)
 - [ ] Failed cases → auto-add to seeds
+- [ ] Scenarios — композиція з кейсів + ad-hoc вставок, "клієнтські персонажі" (торгується, преміум, нетерплячий)
 
 ---
 
@@ -1818,7 +2059,123 @@ Telegram → PTB (run_polling)
 
 ## Додаток B — Що перевикористати з insilver-v3/tests/
 
-- **`real_client_cases.py`** → перенести кейси як seed'и в `insilver_seeds.json`
+- **`real_client_cases.py`** → перенести кейси як seed'и у відповідні блоки в `blocks/`
 - **`e2e_tester.py`** → reference для Telethon transport
 - **`contract_tests.py`** + **`regression_tests.py`** → залишити в insilver, не дублювати
 - Решту ігнорувати
+
+---
+
+## Додаток C — Структура тест-кейсів і робота з AI-оркестратором
+
+Цей додаток описує як організовані тести, як з ними працювати, і як Сашок спілкується з AI-оркестратором (Kit/Sonnet/Opus) для управління тестами. **Сашок не редагує JSON вручну** — він дає команди AI природною мовою, AI вносить зміни.
+
+### C.1 Словник
+
+| Термін | Що це | Приклад |
+|--------|-------|---------|
+| **Кейс (Case)** | Атомарна одиниця тесту: одне питання + очікування | "Скільки коштує бісмарк 50 см?" + має показати розрахунок |
+| **Блок (Block)** | Файл з кейсами однієї теми | `02_pricing.json` — всі кейси про ціни |
+| **Сценарій (Scenario)** | Послідовність блоків для прогону | `full_checkout`: smoke → catalog → pricing → orders |
+| **Adhoc** | Тимчасовий блок-пісочниця для розслідувань | Скарга Влада → 5 кейсів у adhoc → прогін → діагноз |
+| **Архів (Archived)** | Блоки що тимчасово вимкнені, не гоняться | `archived/08_injections.json` |
+| **Expand** | AI-генерація варіацій одного кейсу | `expand: 5` → з одного seed'а 5 перефразувань |
+
+### C.2 Файлова структура
+
+```
+suites/data/insilver/
+├── blocks/                    # активні блоки
+│   ├── 01_smoke.json          # 3 кейси: привіт, подяка, російська мова
+│   ├── 02_pricing.json        # ціни на вироби
+│   ├── 03_catalog.json        # запити на каталог
+│   ├── 04_delivery.json       # доставка, розміри
+│   ├── 05_scrap.json          # лом срібла
+│   ├── 06_orders.json         # multi-turn замовлення
+│   ├── 08_injections.json     # prompt injection, безпека
+│   └── 99_adhoc.json          # пісочниця (тимчасові кейси)
+├── scenarios/                 # рецепти послідовностей
+│   └── full_checkout.json     # {"blocks": ["smoke","catalog","pricing","orders"]}
+├── archived/                  # вимкнені блоки
+│   └── .gitkeep
+└── generated/                 # результат expand (автоматично)
+    └── .gitkeep
+```
+
+**Правила:**
+- Префікс `01_`, `02_` керує порядком виконання. `99_adhoc` завжди останній.
+- `archived/` — блоки що не гоняться, але зберігаються.
+- `generated/` — автоматичні файли від `expand`, не редагувати вручну.
+- `99_adhoc.json` — після розслідування корисні кейси мігрують у постійний блок, adhoc чиститься.
+
+### C.3 Формат сценарію
+
+```json
+{
+    "name": "full_checkout",
+    "description": "Повний шлях клієнта від привітання до замовлення",
+    "blocks": ["smoke", "catalog", "pricing", "orders"]
+}
+```
+
+Запуск: `python main.py run --scenario full_checkout`
+
+### C.4 Як Сашок працює з тестами через AI-оркестратор
+
+Сашок не відкриває JSON. Він дає команди AI (Kit/Sonnet/Opus) природною мовою. AI вносить зміни у файли на Pi5.
+
+#### Перегляд
+
+- *"Покажи блоки"* → AI виводить список блоків і кількість кейсів у кожному
+- *"Що в блоці pricing?"* → AI показує всі кейси блоку: id, текст питання, expand
+- *"Покажи кейс price_bismark_01"* → AI показує всі поля конкретного кейсу
+
+#### Додавання
+
+- *"Додай у pricing кейс про обручки з гравіюванням"* → AI сам генерує id, message, expected_behavior, tags за аналогією з сусідніми кейсами. Показує diff перед збереженням.
+- *"Створи блок gifts — кейси про подарунки: мамі, дівчині, до 1000, преміум"* → AI створює новий файл `07_gifts.json` з 4 кейсами.
+
+#### Редагування
+
+- *"У кейсі price_bismark_01 зміни питання на 'Бісмарк 55 см, яка ціна?'"* → AI замінює поле message
+- *"Додай очікування що бот не має називати точну ціну одразу"* → AI додає в expected_behavior
+
+#### Видалення і архівування
+
+- *"Видали кейс price_wholesale"* → AI питає підтвердження, видаляє
+- *"Архівуй injections"* → AI переносить у `archived/`, блок більше не гониться
+- *"Поверни з архіву injections"* → зворотня операція
+
+#### Розслідування (adhoc)
+
+- *"Влад каже бот тупить на подарунках до 3000. Кинь 5 варіацій в adhoc і прогони"* → AI додає seed з expand: 5 у `99_adhoc.json`, генерує варіації, запускає прогін, показує діагноз
+- *"Ті кейси з adhoc — перенеси в gifts"* → AI мігрує кейси у постійний блок, adhoc чиститься
+
+#### Прогони
+
+- *"Прогони pricing"* → `run --block pricing --judge haiku`
+- *"Прогони full_checkout сонетом"* → `run --scenario full_checkout --judge sonnet`
+- *"Прогони все"* → `run` (всі блоки)
+
+### C.5 Захисні правила для AI-оркестратора
+
+Коли AI редагує тест-файли, він обов'язково:
+
+1. **Показує diff перед збереженням** — Сашок бачить що зміниться
+2. **Валідує JSON** після кожного редагування (`python3 -c "import json; json.load(open(...))"`)
+3. **Робить backup** перед деструктивними операціями (видалення кейсу, архівування блоку)
+4. **Підтримує консистентність** — новий кейс має ту саму структуру полів що й сусідні в тому блоці
+5. **Не вигадує кейси без контексту** — якщо Сашок сказав розпливчасто, AI питає уточнення
+6. **AI сам заповнює мету-поля** — коли Сашок каже "додай кейс про X", AI генерує id, category, tags, expected_behavior за аналогією. Сашок не думає про формат — AI тримає порядок.
+
+### C.6 Приклад повного циклу роботи
+
+1. Клієнт Влад пише: "Бот тупить на питаннях про подарунки до 3000"
+2. Сашок каже AI: *"Додай у adhoc 5 варіацій питання про подарунок мамі до 3000 грн. Прогони adhoc"*
+3. AI додає seed → генерує варіації → запускає прогін → читає звіт
+4. AI пояснює: *"3 з 5 провалились. Бот не тримає бюджет — пропонує за 4500. Проблема в промпті: нема правила про бюджет"*
+5. Сашок править промпт InSilver, перезапускає бот
+6. Сашок: *"Перепрогони adhoc"* → 5 з 5 проходять
+7. Сашок: *"Перенеси з adhoc у новий блок gifts"*
+8. AI створює `07_gifts.json`, переносить кейси, adhoc чистий
+

@@ -161,16 +161,18 @@ async def cmd_run(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     judge_key = "sonnet" if "sonnet" in args else ("opus" if "opus" in args else "haiku")
     category = None
     edge_only = "edge" in args
+    block = None
+    known = {"tg", "sonnet", "opus", "haiku", "edge"}
     for a in args:
-        if a not in ("tg", "sonnet", "opus", "haiku", "edge"):
-            category = a
+        if a not in known:
+            block = a  # перший невідомий аргумент = назва блоку
             break
 
     judge_model = JUDGE_MODELS.get(judge_key, JUDGE_MODELS["haiku"])
 
     desc_parts = [f"transport: *{transport}*", f"judge: *{judge_key}*"]
-    if category:
-        desc_parts.append(f"category: *{category}*")
+    if block:
+        desc_parts.append(f"block: *{block}*")
     if edge_only:
         desc_parts.append("edge cases only")
 
@@ -182,20 +184,25 @@ async def cmd_run(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     async with _run_lock:
         try:
-            await _run_tests(update, transport, judge_model, category, edge_only)
+            await _run_tests(update, transport, judge_model, category, edge_only, block)
         except Exception as e:
             log.error(f"Run error: {e}", exc_info=True)
             await update.message.reply_text(f"💥 Помилка: {e}")
 
 
-async def _run_tests(update: Update, transport_name: str, judge_model: str, category: str, edge_only: bool):
-    from suites.loader import load_suite, filter_cases
+async def _run_tests(update: Update, transport_name: str, judge_model: str, category: str, edge_only: bool, block: str = None):
+    from suites.loader import load_suite, load_block, load_all_blocks, filter_cases
     from judge.evaluator import Evaluator
     from judge.rubrics.insilver import INSILVER_RUBRIC
     from runner.engine import TestRunner
     from reports.formatter import format_telegram_report
 
-    cases = load_suite("insilver_seeds.json")
+    if block:
+        cases = load_block("insilver", block)
+    else:
+        cases = load_all_blocks("insilver")
+        if not cases:
+            cases = load_suite("insilver_seeds.json")
     if category:
         cases = filter_cases(cases, category=category)
     if edge_only:

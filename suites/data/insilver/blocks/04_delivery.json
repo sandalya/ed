@@ -1,0 +1,29 @@
+[
+  {
+    "id": "delivery_question_01",
+    "category": "delivery",
+    "message": "Як ви відправляєте? Нова Пошта?",
+    "context": "Питання про доставку",
+    "tags": ["delivery", "nova_poshta"],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_explain_delivery": true
+    }
+  },
+  {
+    "id": "measurement_help_01",
+    "category": "measurements",
+    "message": "Як виміряти розмір пальця для каблучки?",
+    "context": "Клієнт не знає свій розмір",
+    "tags": ["measurements", "ring", "help"],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_explain_measurement": true,
+      "should_be_helpful": true
+    }
+  }
+]

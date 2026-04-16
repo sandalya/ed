@@ -1,0 +1,32 @@
+[
+  {
+    "id": "price_bismark_01",
+    "category": "pricing",
+    "message": "Скільки коштує ланцюжок бісмарк 50 см?",
+    "context": "Пряме питання про ціну конкретного виробу",
+    "tags": ["pricing", "weaving", "bismark"],
+    "edge_case": false,
+    "conversation": false,
+    "expand": 5,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_offer_variants": true,
+      "should_show_price_calculation": true,
+      "should_not_hallucinate_price": true
+    }
+  },
+  {
+    "id": "scrap_silver_01",
+    "category": "pricing",
+    "message": "Хочу здати лом срібла, скільки даєте за грам?",
+    "context": "Клієнт хоче здати срібний лом",
+    "tags": ["scrap", "pricing", "silver"],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_explain_scrap_process": true,
+      "should_mention_current_rate": true
+    }
+  }
+]
