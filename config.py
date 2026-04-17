@@ -53,3 +53,7 @@ TARGET_BOTS = {
     "insilver": os.getenv("TARGET_BOT_USERNAME", "@insilver_v3_bot"),
     "abby": "@abby_ksu_bot",
 }
+
+# --- click_intent settings ---
+INTENT_CONFIDENCE_THRESHOLD = float(os.getenv("INTENT_CONFIDENCE_THRESHOLD", "0.7"))
+INTENT_LOGS_DIR = BASE_DIR / "data" / "intent_logs"

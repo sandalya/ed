@@ -2,6 +2,7 @@
   {
     "id": "smoke_start_01",
     "category": "order_funnel",
+    "reset_before": true,
     "steps": [
       {
         "action": "send",
@@ -13,7 +14,6 @@
         ]
       }
     ],
-    "reset_before": true,
     "context": "Smoke: /start відповідає без помилок",
     "tags": [
       "smoke"
@@ -23,7 +23,7 @@
     }
   },
   {
-    "id": "smoke_order_intent_01",
+    "id": "intent_click_01",
     "category": "order_funnel",
     "reset_before": true,
     "steps": [
@@ -44,24 +44,29 @@
             "type": "no_error"
           },
           {
-            "type": "text_not_contains",
-            "value": "помилка"
-          },
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "оформити замовлення на ланцюжок",
+        "assertions": [
           {
-            "type": "text_not_contains",
-            "value": "error"
+            "type": "no_error"
           }
         ]
       }
     ],
-    "context": "Smoke: бот реагує на намір замовити",
+    "context": "Тест click_intent: натискає кнопку замовлення по семантиці",
     "tags": [
-      "smoke",
+      "intent",
       "order"
     ],
     "expected_behavior": {
       "should_respond_in_ukrainian": true,
-      "should_guide_to_order": true
+      "should_start_order_flow": true
     }
   }
 ]

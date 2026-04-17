@@ -10,6 +10,9 @@ from typing import Optional
 from config import MAX_COST_PER_RUN, REPORTS_DIR
 from transports.base import BaseTransport, BotResponse
 from judge.evaluator import Evaluator, JudgeResult
+import hashlib
+import json as _json
+from pathlib import Path
 from runner.assertions import run_assertions, AssertionResult
 
 log = logging.getLogger("ed.runner")
@@ -56,7 +59,14 @@ class TestRunner:
 
             log.info(f"[{i+1}/{len(cases)}] {case['id']}")
             needs_reset = case.get("conversation") or case.get("reset_before", False)
-            if reset_between_tests and needs_reset:
+            # Не шлемо /start якщо перший крок тесту вже є /start
+            first_step_is_start = bool(
+                case.get("steps") and
+                len(case["steps"]) > 0 and
+                case["steps"][0].get("action") == "send" and
+                case["steps"][0].get("text", "").strip() == "/start"
+            )
+            if needs_reset and not first_step_is_start:
                 await self.transport.reset_conversation()
                 await asyncio.sleep(1)
 
@@ -183,6 +193,26 @@ class TestRunner:
             elif action == "wait":
                 await asyncio.sleep(step.get("seconds", 2))
                 continue
+            elif action == "click_intent":
+                intent = step.get("intent", "")
+                last_msg = step.get("_last_bot_text", "")
+                # Беремо текст останнього повідомлення бота з попереднього кроку
+                if step_responses:
+                    last_msg = step_responses[-1].text
+                btn_index = await self._resolve_intent(intent, last_msg, self.transport)
+                if btn_index is None:
+                    response = BotResponse(
+                        text="", response_time=0,
+                        error=f"click_intent failed: low confidence or no match for intent='{intent}'"
+                    )
+                else:
+                    # Натискаємо по індексу через button_texts
+                    if step_responses and btn_index < len(step_responses[-1].button_texts):
+                        btn_text = step_responses[-1].button_texts[btn_index]
+                    else:
+                        btn_text = ""
+                    response = await self.transport.click_button(button_text=btn_text)
+                all_texts.append(f"CLICK_INTENT: {intent} -> {btn_text if btn_index is not None else 'FAILED'}")
             else:
                 log.warning(f"Unknown step action: {action}")
                 continue
@@ -241,6 +271,89 @@ class TestRunner:
             has_buttons=last_response.has_buttons if last_response else False,
             button_texts=last_response.button_texts if last_response else [],
         )
+
+
+    async def _resolve_intent(self, intent: str, last_bot_message: str, transport) -> int | None:
+        """Викликає Haiku щоб вибрати кнопку по семантичному інтенту."""
+        import anthropic
+        from config import INTENT_CONFIDENCE_THRESHOLD, INTENT_LOGS_DIR
+        from telethon.tl.types import ReplyInlineMarkup
+
+        button_texts = []
+        if hasattr(transport, "_last_messages"):
+            for msg in transport._last_messages:
+                if hasattr(msg, "reply_markup") and isinstance(msg.reply_markup, ReplyInlineMarkup):
+                    for row in msg.reply_markup.rows:
+                        for btn in row.buttons:
+                            button_texts.append(btn.text)
+
+        if not button_texts:
+            log.warning(f"_resolve_intent: no buttons for intent='{intent}'")
+            return None
+
+        cache_key = hashlib.md5(f"{intent}|{'|'.join(sorted(button_texts))}".encode()).hexdigest()
+        INTENT_LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        cache_file = INTENT_LOGS_DIR / f"cache_{cache_key}.json"
+        if cache_file.exists():
+            cached = _json.loads(cache_file.read_text())
+            log.info(f"  [intent cache] '{intent}' -> index={cached['index']} ({cached['reason']})")
+            return cached["index"]
+
+        formatted = "\n".join(f"[{i}] {t}" for i, t in enumerate(button_texts))
+        system = """Ти — вибиральник кнопок для QA-агента.
+Відповідай ЛИШЕ JSON без markdown: {"index": <число>, "confidence": <0.0-1.0>, "reason": "<5-10 слів українською>"}
+index — з наданого списку. confidence=1.0 точний збіг, 0.7-0.9 семантичний, <0.6 неоднозначно."""
+
+        user = f"Повідомлення бота:\n{last_bot_message[:500]}\n\nКнопки:\n{formatted}\n\nМета: {intent}"
+        log_entry = {"intent": intent, "buttons": button_texts, "last_bot_message": last_bot_message[:200]}
+
+        try:
+            client = anthropic.Anthropic()
+            for attempt in range(2):
+                resp = client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=150,
+                    temperature=0,
+                    system=system,
+                    messages=[{"role": "user", "content": user}],
+                )
+                raw = resp.content[0].text.strip()
+                # Прибираємо markdown фенси якщо Haiku загорнув у ```json ... ```
+                if raw.startswith("```"):
+                    raw = "\n".join(
+                        line for line in raw.splitlines()
+                        if not line.strip().startswith("```")
+                    ).strip()
+                log.info(f"  [intent raw cleaned] {raw[:200]}")
+                parsed = _json.loads(raw)
+                index = int(parsed["index"])
+                confidence = float(parsed["confidence"])
+                reason = parsed.get("reason", "")
+                if 0 <= index < len(button_texts):
+                    break
+                log.warning(f"_resolve_intent: out-of-range index {index}, attempt {attempt+1}")
+            else:
+                log_entry["error"] = f"out-of-range after 2 attempts"
+                (INTENT_LOGS_DIR / f"fail_{cache_key}.json").write_text(_json.dumps(log_entry, ensure_ascii=False, indent=2))
+                return None
+
+            log.info(f"  [intent] '{intent}' -> [{index}] '{button_texts[index]}' conf={confidence:.2f} ({reason})")
+            log_entry.update({"index": index, "confidence": confidence, "reason": reason})
+
+            if confidence < INTENT_CONFIDENCE_THRESHOLD:
+                log.warning(f"  [intent] confidence {confidence:.2f} < threshold {INTENT_CONFIDENCE_THRESHOLD}")
+                log_entry["error"] = f"low confidence: {confidence}"
+                (INTENT_LOGS_DIR / f"fail_{cache_key}.json").write_text(_json.dumps(log_entry, ensure_ascii=False, indent=2))
+                return None
+
+            cache_file.write_text(_json.dumps({"index": index, "confidence": confidence, "reason": reason}, ensure_ascii=False))
+            return index
+
+        except Exception as e:
+            log.error(f"_resolve_intent error: {e}")
+            log_entry["error"] = str(e)
+            (INTENT_LOGS_DIR / f"error_{cache_key}.json").write_text(_json.dumps(log_entry, ensure_ascii=False, indent=2))
+            return None
 
     def _save_report(self, result: RunResult, timestamp: str):
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)

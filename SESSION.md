@@ -1,13 +1,13 @@
-# SESSION — 2026-04-17 19:59
+# SESSION — 2026-04-17 20:18
 
 ## Проект
 ed
 
 ## Що зробили
-Фази 1-4 Ed v2: BotResponse розширено, click_button+get_admin_messages в telegram.py, assertions.py, engine._run_steps. MULTI_MESSAGE_DELAY=2.0. Smoke tests пройшли. Пофіксили 3 баги InSilver через Ed.
+click_intent повністю працює: Haiku temperature=0, markdown strip, кеш по hash. Фікс подвійного /start (first_step_is_start). Виявлено: ConversationHandler InSilver зависає після багатьох /start — потребує /cancel в reset_conversation. Ed v2 всі 4 capability з плану реалізовано і протестовано.
 
 ## Наступний крок
-Фаза 5: пройти воронку InSilver вручну, записати точні тексти кнопок, написати 10_order_funnel.json з click steps
+Фаза 5: пройти воронку InSilver вручну, написати 10_order_funnel.json з click_intent кроками. Додати /cancel в reset_conversation щоб уникати зависання ConversationHandler.
 
 ## Контекст
-Ed path: workspace/ed/, venv активувати перед запуском. Формат steps: action=send/click/photo/wait. click_button шукає по button_text або button_data
+reset_conversation в telegram.py шле тільки /start. ConversationHandler зависає якщо не скинути стан. Кеш intent_logs/ вже наповнений першим записом.
