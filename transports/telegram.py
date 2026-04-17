@@ -153,6 +153,8 @@ class TelegramTransport(BaseTransport):
             for row in msg.reply_markup.rows:
                 for btn in row.buttons:
                     if button_text and btn.text == button_text:
+                        if not hasattr(btn, "data"):
+                            continue
                         target_msg = msg
                         target_btn = btn
                         break
@@ -263,9 +265,11 @@ class TelegramTransport(BaseTransport):
         return result
 
     async def reset_conversation(self):
+        await self.send_command("/cancel")
+        await asyncio.sleep(0.3)
         await self.send_command("/start")
         await asyncio.sleep(1)
-        log.info("Conversation reset via /start")
+        log.info("Conversation reset via /cancel + /start")
 
     async def disconnect(self):
         await self.client.disconnect()

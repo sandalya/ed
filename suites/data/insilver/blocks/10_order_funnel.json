@@ -1,6 +1,6 @@
 [
   {
-    "id": "smoke_start_01",
+    "id": "funnel_smoke_start",
     "category": "order_funnel",
     "reset_before": true,
     "steps": [
@@ -23,7 +23,7 @@
     }
   },
   {
-    "id": "intent_click_01",
+    "id": "funnel_happy_path_01",
     "category": "order_funnel",
     "reset_before": true,
     "steps": [
@@ -38,7 +38,7 @@
       },
       {
         "action": "send",
-        "text": "Хочу замовити ланцюжок",
+        "text": "/order",
         "assertions": [
           {
             "type": "no_error"
@@ -51,7 +51,90 @@
       },
       {
         "action": "click_intent",
-        "intent": "оформити замовлення на ланцюжок",
+        "intent": "Бісмарк",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "50см",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "30",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Срібло біле",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Карабін",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Немає",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "Іван +38099 123 45 67",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Немає",
         "assertions": [
           {
             "type": "no_error"
@@ -59,14 +142,318 @@
         ]
       }
     ],
-    "context": "Тест click_intent: натискає кнопку замовлення по семантиці",
+    "context": "Повна воронка happy path: Бісмарк, 50см, 30г, срібло, карабін, без додаткового",
     "tags": [
-      "intent",
-      "order"
+      "happy_path",
+      "funnel",
+      "full"
     ],
     "expected_behavior": {
       "should_respond_in_ukrainian": true,
-      "should_start_order_flow": true
+      "should_complete_order": true
+    }
+  },
+  {
+    "id": "funnel_cancel_mid_flow",
+    "category": "order_funnel",
+    "reset_before": true,
+    "steps": [
+      {
+        "action": "send",
+        "text": "/start",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "/order",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Якір",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Скасувати",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      }
+    ],
+    "context": "Скасування на 2му кроці — бот виходить з воронки коректно",
+    "tags": [
+      "cancel",
+      "funnel"
+    ],
+    "expected_behavior": {
+      "should_exit_funnel": true,
+      "should_not_save_order": true
+    }
+  },
+  {
+    "id": "funnel_bug_length_other",
+    "category": "order_funnel",
+    "reset_before": true,
+    "edge_case": true,
+    "steps": [
+      {
+        "action": "send",
+        "text": "/start",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "/order",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Бісмарк",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Інше",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      }
+    ],
+    "context": "БАГ 2/8: 'Інше' на довжині не питає яку саме — одразу переходить далі",
+    "tags": [
+      "bug",
+      "length",
+      "other"
+    ],
+    "expected_behavior": {
+      "should_ask_for_custom_length": true
+    }
+  },
+  {
+    "id": "funnel_bug_coating_other",
+    "category": "order_funnel",
+    "reset_before": true,
+    "edge_case": true,
+    "steps": [
+      {
+        "action": "send",
+        "text": "/start",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "/order",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Бісмарк",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "50см",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "30",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Інше",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      }
+    ],
+    "context": "БАГ 4/8: 'Інше' на покритті не дає вписати — зберігає 'інше' без уточнення",
+    "tags": [
+      "bug",
+      "coating",
+      "other"
+    ],
+    "expected_behavior": {
+      "should_ask_for_custom_coating": true
+    }
+  },
+  {
+    "id": "funnel_bug_comment_flow",
+    "category": "order_funnel",
+    "reset_before": true,
+    "edge_case": true,
+    "steps": [
+      {
+        "action": "send",
+        "text": "/start",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "/order",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Бісмарк",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "50см",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "30",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Срібло біле",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Карабін",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Немає",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "Іван +38099 123 45 67",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Є коментар",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      }
+    ],
+    "context": "БАГ 8/8: 'Є коментар' одразу реєструє замовлення без поля вводу",
+    "tags": [
+      "bug",
+      "comment",
+      "final_step"
+    ],
+    "expected_behavior": {
+      "should_ask_for_comment_text": true
     }
   }
 ]

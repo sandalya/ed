@@ -1,0 +1,10 @@
+{
+  "intent": "інша довжина не зі списку",
+  "buttons": [
+    "🌐 Наш сайт",
+    "📱 Зв'язок з майстром",
+    "📋 Показати каталог"
+  ],
+  "last_bot_message": "",
+  "error": "out-of-range after 2 attempts"
+}

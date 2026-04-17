@@ -1,13 +1,13 @@
-# SESSION — 2026-04-17 20:18
+# SESSION — 2026-04-17 20:45
 
 ## Проект
 ed
 
 ## Що зробили
-click_intent повністю працює: Haiku temperature=0, markdown strip, кеш по hash. Фікс подвійного /start (first_step_is_start). Виявлено: ConversationHandler InSilver зависає після багатьох /start — потребує /cancel в reset_conversation. Ed v2 всі 4 capability з плану реалізовано і протестовано.
+click_intent воронка InSilver: 6 кейсів, баги length_other/comment_flow підтверджені Ed'ом. Фікс: /cancel+/start в reset_conversation, фікс KeyboardButtonUserProfile в click_button
 
 ## Наступний крок
-Фаза 5: пройти воронку InSilver вручну, написати 10_order_funnel.json з click_intent кроками. Додати /cancel в reset_conversation щоб уникати зависання ConversationHandler.
+Фаза 6: send_photo в telegram.py. Баги InSilver для Влада: length_other не питає довжину, coating_other не питає покриття, comment_flow одразу реєструє без коментаря
 
 ## Контекст
-reset_conversation в telegram.py шле тільки /start. ConversationHandler зависає якщо не скинути стан. Кеш intent_logs/ вже наповнений першим записом.
+funnel_bug_coating_other падає з Timeout — ConversationHandler зависає між тестами навіть з /cancel. Можливо потрібен більший sleep після reset або /cancel двічі
