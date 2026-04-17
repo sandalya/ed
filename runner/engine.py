@@ -13,7 +13,7 @@ from judge.evaluator import Evaluator, JudgeResult
 
 log = logging.getLogger("ed.runner")
 
-BETWEEN_TESTS_DELAY = 2
+BETWEEN_TESTS_DELAY = 0.3
 
 
 @dataclass
