@@ -14,6 +14,7 @@ SESSION_PATH = str(BASE_DIR / "data" / "telethon_session" / "ed_session")
 
 # --- Target bot ---
 TARGET_BOT_USERNAME = os.getenv("TARGET_BOT_USERNAME", "")
+ADMIN_VERIFY_CHAT_ID = int(os.getenv("ADMIN_VERIFY_CHAT_ID", "0"))
 
 # --- Anthropic ---
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")

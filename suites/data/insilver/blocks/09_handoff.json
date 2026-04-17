@@ -1,0 +1,85 @@
+[
+  {
+    "id": "handoff_manager_request",
+    "category": "handoff",
+    "message": "Можна поговорити з менеджером?",
+    "context": "Клієнт просить менеджера — бот має передати діалог майстру",
+    "tags": ["handoff", "critical"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_say_transferring_to_master": true,
+      "must_not_continue_consultation": true
+    }
+  },
+  {
+    "id": "handoff_human_request",
+    "category": "handoff",
+    "message": "Позвати людину",
+    "context": "Клієнт просить живу людину",
+    "tags": ["handoff"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_say_transferring_to_master": true
+    }
+  },
+  {
+    "id": "handoff_complex_ring",
+    "category": "handoff",
+    "message": "Хочу замовити каблучку зі срібла",
+    "context": "Каблучка — складний виріб, бот має передати майстру",
+    "tags": ["handoff", "complex_product"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_recognize_complex_product": true,
+      "should_say_transferring_to_master": true
+    }
+  },
+  {
+    "id": "handoff_complex_cross",
+    "category": "handoff",
+    "message": "Скільки коштує срібний хрестик?",
+    "context": "Хрестик — складний виріб",
+    "tags": ["handoff", "complex_product"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_recognize_complex_product": true,
+      "should_say_transferring_to_master": true
+    }
+  },
+  {
+    "id": "handoff_complex_pendant",
+    "category": "handoff",
+    "message": "Хочу кулон з гравіровкою",
+    "context": "Кулон — складний виріб",
+    "tags": ["handoff", "complex_product"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_recognize_complex_product": true,
+      "should_say_transferring_to_master": true
+    }
+  },
+  {
+    "id": "normal_chain_NOT_handoff",
+    "category": "handoff",
+    "message": "Хочу ланцюжок Бісмарк 50 см",
+    "context": "Ланцюжок — стандартний виріб, бот має обробити сам, НЕ передавати майстру",
+    "tags": ["handoff", "negative_test", "critical"],
+    "edge_case": true,
+    "expected_behavior": {
+      "must_not_transfer_to_master": true,
+      "should_handle_normally": true
+    }
+  },
+  {
+    "id": "normal_bracelet_NOT_handoff",
+    "category": "handoff",
+    "message": "Скільки коштує браслет Пітон?",
+    "context": "Браслет — стандартний виріб, бот обробляє сам",
+    "tags": ["handoff", "negative_test"],
+    "edge_case": true,
+    "expected_behavior": {
+      "must_not_transfer_to_master": true,
+      "should_handle_normally": true
+    }
+  }
+]

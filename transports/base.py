@@ -10,10 +10,14 @@ class BotResponse:
     text: str
     response_time: float
     has_photos: bool = False
+    photo_count: int = 0
     has_buttons: bool = False
     button_texts: list = field(default_factory=list)
+    button_data: list = field(default_factory=list)
     raw_messages: list = field(default_factory=list)
     error: Optional[str] = None
+    all_texts: list = field(default_factory=list)
+    caption_texts: list = field(default_factory=list)
 
 
 class BaseTransport(ABC):
@@ -21,24 +25,32 @@ class BaseTransport(ABC):
 
     @abstractmethod
     async def connect(self):
-        """Підключитись до каналу."""
         ...
 
     @abstractmethod
     async def send_message(self, text: str) -> BotResponse:
-        """Відправити повідомлення боту і отримати відповідь."""
         ...
 
     @abstractmethod
     async def send_command(self, command: str) -> BotResponse:
-        """Відправити команду (/start, /help, etc)."""
         ...
 
     @abstractmethod
     async def disconnect(self):
-        """Відключитись."""
         ...
 
     async def reset_conversation(self):
-        """Скинути контекст розмови (опціонально)."""
+        """Скинути контекст розмови."""
         pass
+
+    async def click_button(self, button_text: str = "", button_data: str = "") -> BotResponse:
+        """Натиснути inline кнопку. Шукає по тексту або callback_data."""
+        raise NotImplementedError("Transport не підтримує click_button")
+
+    async def send_photo(self, photo_path: str, caption: str = "") -> BotResponse:
+        """Надіслати фото боту."""
+        raise NotImplementedError("Transport не підтримує send_photo")
+
+    async def get_admin_messages(self, count: int = 1, timeout: float = 10) -> list:
+        """Отримати останні повідомлення в адмін-чаті."""
+        raise NotImplementedError("Transport не підтримує get_admin_messages")

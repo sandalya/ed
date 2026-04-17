@@ -1,0 +1,67 @@
+[
+  {
+    "id": "smoke_start_01",
+    "category": "order_funnel",
+    "steps": [
+      {
+        "action": "send",
+        "text": "/start",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      }
+    ],
+    "reset_before": true,
+    "context": "Smoke: /start відповідає без помилок",
+    "tags": [
+      "smoke"
+    ],
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true
+    }
+  },
+  {
+    "id": "smoke_order_intent_01",
+    "category": "order_funnel",
+    "reset_before": true,
+    "steps": [
+      {
+        "action": "send",
+        "text": "/start",
+        "assertions": [
+          {
+            "type": "no_error"
+          }
+        ]
+      },
+      {
+        "action": "send",
+        "text": "Хочу замовити ланцюжок",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "text_not_contains",
+            "value": "помилка"
+          },
+          {
+            "type": "text_not_contains",
+            "value": "error"
+          }
+        ]
+      }
+    ],
+    "context": "Smoke: бот реагує на намір замовити",
+    "tags": [
+      "smoke",
+      "order"
+    ],
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_guide_to_order": true
+    }
+  }
+]
