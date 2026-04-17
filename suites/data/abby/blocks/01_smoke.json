@@ -1,0 +1,33 @@
+[
+    {
+        "id": "abby_greeting_01",
+        "category": "greeting",
+        "message": "Привіт",
+        "context": "Просте привітання",
+        "tags": [
+            "greeting"
+        ],
+        "edge_case": false,
+        "conversation": false,
+        "expected_behavior": {
+            "should_respond_in_ukrainian": true,
+            "should_not_use_sycophantic_phrases": true,
+            "should_be_brief": true
+        }
+    },
+    {
+        "id": "abby_thanks_01",
+        "category": "greeting",
+        "message": "Дякую, все круто!",
+        "context": "Ксю дякує — коротка відповідь",
+        "tags": [
+            "thanks"
+        ],
+        "edge_case": false,
+        "conversation": false,
+        "expected_behavior": {
+            "should_be_brief": true,
+            "should_not_use_sycophantic_phrases": true
+        }
+    }
+]

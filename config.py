@@ -46,3 +46,9 @@ ED_BOT_TOKEN = os.getenv("ED_BOT_TOKEN", "")
 # --- Paths ---
 REPORTS_DIR = BASE_DIR / "reports" / "history"
 SUITES_DIR = BASE_DIR / "suites" / "data"
+
+# --- Target bots ---
+TARGET_BOTS = {
+    "insilver": os.getenv("TARGET_BOT_USERNAME", "@insilver_v3_bot"),
+    "abby": "@abby_ksu_bot",
+}

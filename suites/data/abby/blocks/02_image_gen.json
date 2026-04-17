@@ -1,0 +1,20 @@
+[
+    {
+        "id": "abby_gen_icon_01",
+        "category": "image_gen",
+        "message": "Згенеруй іконку кавової чашки в 3D стилі, темний фон",
+        "context": "Простий запит на генерацію",
+        "tags": [
+            "image_gen",
+            "dark_bg"
+        ],
+        "edge_case": false,
+        "conversation": false,
+        "expected_behavior": {
+            "should_respond_with_image_prompt": true,
+            "should_write_prompt_in_english": true,
+            "should_include_no_text_clause": true,
+            "should_describe_dark_background": true
+        }
+    }
+]

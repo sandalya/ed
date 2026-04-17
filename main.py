@@ -38,6 +38,7 @@ from suites.loader import load_suite, load_block, load_all_blocks, load_scenario
 from suites.generator import expand_suite
 from judge.evaluator import Evaluator
 from judge.rubrics.insilver import INSILVER_RUBRIC
+from judge.rubrics.abby import ABBY_RUBRIC
 from runner.engine import TestRunner
 from reports.formatter import format_terminal_report, format_telegram_report, format_verbose_report
 
@@ -52,10 +53,12 @@ logging.basicConfig(
 log = logging.getLogger("ed.main")
 
 
-def get_transport(name: str):
+def get_transport(name: str, bot: str = "insilver"):
     if name == "telegram":
         from transports.telegram import TelegramTransport
-        return TelegramTransport()
+        from config import TARGET_BOTS
+        bot_username = TARGET_BOTS.get(bot, TARGET_BOTS["insilver"])
+        return TelegramTransport(bot_username=bot_username)
     elif name == "direct":
         from transports.direct import DirectTransport
         return DirectTransport()
@@ -121,9 +124,13 @@ async def cmd_run(args):
         log.error("No test cases after filtering")
         sys.exit(1)
 
-    transport = get_transport(args.transport)
+    transport = get_transport(args.transport, bot=bot)
     judge_model = JUDGE_MODELS.get(args.judge, JUDGE_MODELS["sonnet"])
-    evaluator = Evaluator(rubric=INSILVER_RUBRIC, model=judge_model)
+    if bot == "abby":
+        rubric = ABBY_RUBRIC
+    else:
+        rubric = INSILVER_RUBRIC
+    evaluator = Evaluator(rubric=rubric, model=judge_model)
     runner = TestRunner(transport=transport, evaluator=evaluator, max_cost=args.budget)
 
     log.info(f"Running {len(cases)} tests via {args.transport}, judge: {args.judge}")

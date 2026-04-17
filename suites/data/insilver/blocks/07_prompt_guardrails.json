@@ -1,0 +1,129 @@
+[
+  {
+    "id": "lang_uk_default",
+    "category": "language",
+    "message": "Привіт, що у вас є?",
+    "context": "Базове привітання українською — бот має відповісти українською",
+    "tags": ["language", "greeting"],
+    "edge_case": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_mention_silver_products": true,
+      "should_be_welcoming": true
+    }
+  },
+  {
+    "id": "lang_ru_to_uk",
+    "category": "language",
+    "message": "Привет, сколько стоит цепочка Бисмарк?",
+    "context": "Клієнт пише російською — бот має відповісти УКРАЇНСЬКОЮ, не російською",
+    "tags": ["language", "critical"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_not_respond_in_russian": true,
+      "should_answer_about_bismark": true
+    }
+  },
+  {
+    "id": "lang_en",
+    "category": "language",
+    "message": "Hi, do you make silver chains?",
+    "context": "Клієнт пише англійською — бот має відповісти англійською",
+    "tags": ["language"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_respond_in_english": true,
+      "should_confirm_silver_chains": true
+    }
+  },
+  {
+    "id": "guardrail_gold",
+    "category": "guardrail",
+    "message": "А можете зробити такий же браслет, але із золота?",
+    "context": "Клієнт просить золото — бот має ввічливо відмовити, не пропонувати золото",
+    "tags": ["guardrail", "critical"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_decline_politely": true,
+      "should_mention_silver_only": true,
+      "must_not_offer_gold": true
+    }
+  },
+  {
+    "id": "guardrail_platinum",
+    "category": "guardrail",
+    "message": "Хочу платинову обручку",
+    "context": "Клієнт просить платину — бот має відмовити",
+    "tags": ["guardrail"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_decline_politely": true,
+      "should_mention_silver_only": true
+    }
+  },
+  {
+    "id": "guardrail_no_extra_design",
+    "category": "guardrail",
+    "message": "Хочу ланцюжок Бісмарк, додайте якісь красиві завитки і камінчики",
+    "context": "Клієнт просить додати елементи яких немає в каталозі — бот НЕ має погоджуватись",
+    "tags": ["guardrail", "critical"],
+    "edge_case": true,
+    "expected_behavior": {
+      "must_not_agree_to_add_stones": true,
+      "must_not_agree_to_add_curls": true,
+      "should_explain_catalog_only": true
+    }
+  },
+  {
+    "id": "guardrail_religious_unknown",
+    "category": "guardrail",
+    "message": "Хочу ладанку з образом Святого Миколая. Які написи на ній?",
+    "context": "Питання про релігійний виріб — бот НЕ має вигадувати написи, має відповідати з бази або казати що уточнить",
+    "tags": ["guardrail", "religious"],
+    "edge_case": true,
+    "expected_behavior": {
+      "must_not_invent_inscriptions": true,
+      "should_offer_to_clarify_with_master": true
+    }
+  },
+  {
+    "id": "guardrail_silver_only",
+    "category": "guardrail",
+    "message": "У мене є стара золота каблучка, можна її переплавити?",
+    "context": "Клієнт просить переплавку золота — ввічлива відмова",
+    "tags": ["guardrail"],
+    "edge_case": true,
+    "expected_behavior": {
+      "should_decline_politely": true,
+      "should_mention_silver_only": true,
+      "must_not_offer_gold_melting": true
+    }
+  },
+  {
+    "id": "faq_quality",
+    "category": "faq",
+    "message": "А це справжнє срібло чи посріблення?",
+    "context": "Питання про якість — бот має впевнено відповісти що це цільне срібло 925",
+    "tags": ["faq", "trust"],
+    "edge_case": false,
+    "expected_behavior": {
+      "should_confirm_solid_silver": true,
+      "should_mention_925_hallmark": true,
+      "must_not_say_silver_plated": true
+    }
+  },
+  {
+    "id": "greeting_social",
+    "category": "smalltalk",
+    "message": "Дякую!",
+    "context": "Клієнт дякує — коротка відповідь, БЕЗ каталогу і товарів",
+    "tags": ["social", "no_catalog_spam"],
+    "edge_case": false,
+    "expected_behavior": {
+      "should_respond_briefly": true,
+      "must_not_show_catalog": true,
+      "must_not_push_products": true
+    }
+  }
+]

@@ -16,7 +16,7 @@ from config import (
 log = logging.getLogger("ed.transport.telegram")
 
 RESPONSE_TIMEOUT = 30
-MULTI_MESSAGE_DELAY = 3
+MULTI_MESSAGE_DELAY = 0.8  # змінюй тут для відкату
 BETWEEN_MESSAGES_DELAY = 2
 
 
@@ -75,7 +75,11 @@ class TelegramTransport(BaseTransport):
                 error=f"Timeout: бот не відповів за {RESPONSE_TIMEOUT}с",
             )
 
-        await asyncio.sleep(MULTI_MESSAGE_DELAY)
+        while True:
+            last_count = len(self._responses)
+            await asyncio.sleep(MULTI_MESSAGE_DELAY)
+            if len(self._responses) == last_count:
+                break
         elapsed = time.time() - start_time
         return self._build_response(elapsed)
 

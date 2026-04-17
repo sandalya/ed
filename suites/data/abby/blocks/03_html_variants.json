@@ -1,0 +1,20 @@
+[
+    {
+        "id": "abby_html_buttons_01",
+        "category": "html_gen",
+        "message": "Зроби 5 варіантів кнопки 'Замовити' для ювелірного сайту",
+        "context": "HTML варіанти — всі в одному блоці",
+        "tags": [
+            "html",
+            "variants"
+        ],
+        "edge_case": false,
+        "conversation": false,
+        "expected_behavior": {
+            "should_return_html_block": true,
+            "should_have_5_variants": true,
+            "should_use_dark_background": true,
+            "should_have_short_comment_after": true
+        }
+    }
+]

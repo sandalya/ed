@@ -1,0 +1,34 @@
+[
+    {
+        "id": "abby_doublecheck_01",
+        "category": "doublecheck",
+        "message": "даблчек зроби 3 варіанти логотипу для кав'ярні",
+        "context": "Слово 'даблчек' → переказ задачі + підтвердження",
+        "tags": [
+            "doublecheck"
+        ],
+        "edge_case": false,
+        "conversation": false,
+        "expected_behavior": {
+            "should_not_generate_immediately": true,
+            "should_rephrase_task": true,
+            "should_ask_confirmation": true
+        }
+    },
+    {
+        "id": "abby_no_doublecheck_01",
+        "category": "doublecheck",
+        "message": "Зроби 3 варіанти логотипу для кав'ярні",
+        "context": "Без 'даблчек' → одразу працює",
+        "tags": [
+            "doublecheck",
+            "negative"
+        ],
+        "edge_case": false,
+        "conversation": false,
+        "expected_behavior": {
+            "should_generate_immediately": true,
+            "should_not_ask_confirmation": true
+        }
+    }
+]
