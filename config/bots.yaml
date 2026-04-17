@@ -1,0 +1,16 @@
+# Ed — конфіг цільових ботів
+# reset_command виконується перед кейсом з "reset_before": true
+# Використовуй для ботів з persistent state (handoff_state.json, sqlite, тощо)
+
+abby:
+  username: "@abby_ksu_bot"
+  # Abby не має persistent state який треба скидати між тестами
+  reset_command: null
+
+insilver:
+  username: "@insilver_v3_bot"
+  reset_command: "echo '{}' > /home/sashok/.openclaw/workspace/insilver-v3/data/handoff_state.json"
+
+garcia:
+  username: "@garcia_ksu_bot"
+  reset_command: null

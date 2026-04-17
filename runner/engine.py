@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import subprocess
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -43,7 +44,7 @@ class TestRunner:
         self.max_cost = max_cost
         self._results: list = []
 
-    async def run_suite(self, cases: list, reset_between_tests: bool = True) -> RunResult:
+    async def run_suite(self, cases: list, reset_between_tests: bool = True, bot_name: str | None = None) -> RunResult:
         start_time = time.time()
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         log.info(f"Starting: {len(cases)} cases, judge: {self.evaluator.model}")
@@ -58,6 +59,29 @@ class TestRunner:
                 break
 
             log.info(f"[{i+1}/{len(cases)}] {case['id']}")
+
+            # --- reset_before: shell hook перед кейсом ---
+            if case.get("reset_before") and bot_name:
+                from config import BOTS_CONFIG
+                reset_cmd = BOTS_CONFIG.get(bot_name, {}).get("reset_command")
+                if reset_cmd:
+                    log.info(f"  [reset_before] {reset_cmd[:80]}...")
+                    try:
+                        result = await asyncio.to_thread(
+                            subprocess.run, reset_cmd, shell=True,
+                            capture_output=True, text=True, timeout=30
+                        )
+                        if result.returncode != 0:
+                            log.warning(f"  [reset_before] exit={result.returncode} stderr={result.stderr[:200]}")
+                        else:
+                            log.info(f"  [reset_before] ok")
+                    except subprocess.TimeoutExpired:
+                        log.error(f"  [reset_before] TIMEOUT after 30s")
+                    except Exception as e:
+                        log.error(f"  [reset_before] error: {e}")
+                else:
+                    log.warning(f"  [reset_before] no reset_command configured for bot={bot_name}")
+
             needs_reset = case.get("conversation") or case.get("reset_before", False)
             # Не шлемо /start якщо перший крок тесту вже є /start
             first_step_is_start = bool(

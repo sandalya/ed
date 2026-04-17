@@ -49,10 +49,26 @@ REPORTS_DIR = BASE_DIR / "reports" / "history"
 SUITES_DIR = BASE_DIR / "suites" / "data"
 
 # --- Target bots ---
+import yaml
+BOTS_CONFIG_PATH = BASE_DIR / "config" / "bots.yaml"
+
+def load_bots_config() -> dict:
+    """Завантажує config/bots.yaml. Повертає dict {bot_name: {username, reset_command}}."""
+    if not BOTS_CONFIG_PATH.exists():
+        return {}
+    with open(BOTS_CONFIG_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+BOTS_CONFIG = load_bots_config()
 TARGET_BOTS = {
-    "insilver": os.getenv("TARGET_BOT_USERNAME", "@insilver_v3_bot"),
-    "abby": "@abby_ksu_bot",
+    name: cfg.get("username", "") for name, cfg in BOTS_CONFIG.items()
 }
+# Fallback для сумісності якщо yaml порожній
+if not TARGET_BOTS:
+    TARGET_BOTS = {
+        "insilver": os.getenv("TARGET_BOT_USERNAME", "@insilver_v3_bot"),
+        "abby": "@abby_ksu_bot",
+    }
 
 # --- click_intent settings ---
 INTENT_CONFIDENCE_THRESHOLD = float(os.getenv("INTENT_CONFIDENCE_THRESHOLD", "0.7"))

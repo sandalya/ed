@@ -39,6 +39,7 @@ from suites.generator import expand_suite
 from judge.evaluator import Evaluator
 from judge.rubrics.insilver import INSILVER_RUBRIC
 from judge.rubrics.abby import ABBY_RUBRIC
+from judge.rubrics.garcia import GARCIA_RUBRIC
 from runner.engine import TestRunner
 from reports.formatter import format_terminal_report, format_telegram_report, format_verbose_report
 
@@ -128,13 +129,15 @@ async def cmd_run(args):
     judge_model = JUDGE_MODELS.get(args.judge, JUDGE_MODELS["sonnet"])
     if bot == "abby":
         rubric = ABBY_RUBRIC
+    elif bot == "garcia":
+        rubric = GARCIA_RUBRIC
     else:
         rubric = INSILVER_RUBRIC
     evaluator = Evaluator(rubric=rubric, model=judge_model)
     runner = TestRunner(transport=transport, evaluator=evaluator, max_cost=args.budget)
 
     log.info(f"Running {len(cases)} tests via {args.transport}, judge: {args.judge}")
-    result = await runner.run_suite(cases)
+    result = await runner.run_suite(cases, bot_name=args.bot)
 
     # --verbose: повні транскрипти фейлів
     if getattr(args, 'verbose', False):

@@ -1,0 +1,49 @@
+[
+  {
+    "id": "garcia_greeting",
+    "category": "smoke",
+    "message": "Привіт",
+    "context": "Привітання",
+    "tags": [
+      "smoke"
+    ],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_address_as_ksyu": true,
+      "should_use_feminine_gender": true
+    }
+  },
+  {
+    "id": "garcia_thanks",
+    "category": "smoke",
+    "message": "Дякую!",
+    "context": "Подяка — коротка відповідь",
+    "tags": [
+      "smoke"
+    ],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_be_brief": true
+    }
+  },
+  {
+    "id": "garcia_russian",
+    "category": "smoke",
+    "message": "Привет, помоги с макияжем",
+    "context": "Російська — відповідь українською",
+    "tags": [
+      "smoke",
+      "language"
+    ],
+    "edge_case": true,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_not_switch_to_russian": true
+    }
+  }
+]

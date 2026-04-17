@@ -1,0 +1,51 @@
+[
+  {
+    "id": "garcia_lipstick",
+    "category": "products",
+    "message": "Яка помада підійде на кожен день?",
+    "context": "Щоденна помада під Cool Summer",
+    "tags": [
+      "products"
+    ],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_recommend_specific_products": true,
+      "should_use_feminine_gender": true
+    }
+  },
+  {
+    "id": "garcia_rosacea",
+    "category": "products",
+    "message": "Що порадиш для маскування почервонінь на носі?",
+    "context": "Ксю має розацею — Garcia знає з профілю",
+    "tags": [
+      "products",
+      "skin"
+    ],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_recommend_suitable_products": true,
+      "should_use_feminine_gender": true
+    }
+  },
+  {
+    "id": "garcia_color_type",
+    "category": "color_analysis",
+    "message": "Який у мене колірний тип?",
+    "context": "Garcia знає з профілю — Cool Summer",
+    "tags": [
+      "color_analysis"
+    ],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_reference_profile_data": true,
+      "should_use_feminine_gender": true
+    }
+  }
+]
