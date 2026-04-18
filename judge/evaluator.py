@@ -80,18 +80,33 @@ class Evaluator:
         user_prompt = self._build_user_prompt(test_case, bot_response_text, meta)
 
         try:
+            rubric_block = self.rubric.to_judge_prompt()
             response = await asyncio.to_thread(
                 client.messages.create,
                 model=self.model,
                 max_tokens=1500,
-                system=JUDGE_SYSTEM_PROMPT,
+                system=[
+                    {"type": "text", "text": JUDGE_SYSTEM_PROMPT},
+                    {"type": "text", "text": rubric_block, "cache_control": {"type": "ephemeral"}},
+                ],
                 messages=[{"role": "user", "content": user_prompt}],
             )
 
             usage = response.usage
             costs = MODEL_COSTS.get(self.model, {"input": 3.0, "output": 15.0})
-            cost = (usage.input_tokens * costs["input"] / 1_000_000
-                    + usage.output_tokens * costs["output"] / 1_000_000)
+            cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+            cache_write = getattr(usage, "cache_creation_input_tokens", 0) or 0
+            cost = (
+                usage.input_tokens * costs["input"] / 1_000_000
+                + cache_read * costs["input"] * 0.1 / 1_000_000
+                + cache_write * costs["input"] * 1.25 / 1_000_000
+                + usage.output_tokens * costs["output"] / 1_000_000
+            )
+            if cache_read or cache_write:
+                import logging
+                logging.getLogger("ed.judge").info(
+                    f"cache: read={cache_read} write={cache_write} in={usage.input_tokens} out={usage.output_tokens}"
+                )
             self._total_cost += cost
 
             text = response.content[0].text.strip()
@@ -114,7 +129,7 @@ class Evaluator:
                                summary=f"Judge error: {e}", judge_model=self.model, error=str(e))
 
     def _build_user_prompt(self, test_case: dict, bot_response: str, meta: dict) -> str:
-        rubric_text = self.rubric.to_judge_prompt()
+        # rubric вже в system (cache_control)
 
         meta_lines = []
         if meta.get("response_time"):
@@ -132,11 +147,7 @@ class Evaluator:
             expected_lines.append(f"- {'МАЄ' if val else 'НЕ МАЄ'}: {readable}")
         expected_str = "\n".join(expected_lines) if expected_lines else "немає"
 
-        return f"""{rubric_text}
-
----
-
-## Тест-кейс
+        return f"""## Тест-кейс
 **ID:** {test_case['id']}
 **Категорія:** {test_case.get('category', 'unknown')}
 **Контекст:** {test_case.get('context', 'немає')}
