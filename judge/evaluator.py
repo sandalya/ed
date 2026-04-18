@@ -9,7 +9,7 @@ from .rubrics.base import Rubric
 
 log = logging.getLogger("ed.judge")
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=8, timeout=60.0)
 
 JUDGE_SYSTEM_PROMPT = """Ти — Ed, суворий QA-тестувальник Telegram-ботів. Твоя робота — знаходити проблеми, а не підтверджувати що все добре.
 
