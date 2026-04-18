@@ -54,17 +54,32 @@ logging.basicConfig(
 log = logging.getLogger("ed.main")
 
 
+def build_transports(cli_choice: str, bot: str = "insilver") -> dict:
+    """Створює словник транспортів відповідно до cli_choice.
+
+    cli_choice="auto"     -> {"direct": ..., "telegram": ...}
+    cli_choice="direct"   -> {"direct": ...}
+    cli_choice="telegram" -> {"telegram": ...}
+    """
+    from transports.direct import DirectTransport
+    from transports.telegram import TelegramTransport
+    from config import TARGET_BOTS
+
+    bot_username = TARGET_BOTS.get(bot, TARGET_BOTS["insilver"])
+    transports = {}
+    if cli_choice in ("auto", "direct"):
+        transports["direct"] = DirectTransport(bot_name=bot)
+    if cli_choice in ("auto", "telegram"):
+        transports["telegram"] = TelegramTransport(bot_username=bot_username)
+    if not transports:
+        raise ValueError(f"Unknown transport: {cli_choice}")
+    return transports
+
+
 def get_transport(name: str, bot: str = "insilver"):
-    if name == "telegram":
-        from transports.telegram import TelegramTransport
-        from config import TARGET_BOTS
-        bot_username = TARGET_BOTS.get(bot, TARGET_BOTS["insilver"])
-        return TelegramTransport(bot_username=bot_username)
-    elif name == "direct":
-        from transports.direct import DirectTransport
-        return DirectTransport(bot_name=bot)
-    else:
-        raise ValueError(f"Unknown transport: {name}")
+    """DEPRECATED: use build_transports(). Kept for backward compat."""
+    ts = build_transports(name, bot)
+    return ts[name]
 
 
 async def send_telegram_notification(message: str):
@@ -125,7 +140,7 @@ async def cmd_run(args):
         log.error("No test cases after filtering")
         sys.exit(1)
 
-    transport = get_transport(args.transport, bot=bot)
+    transports = build_transports(args.transport, bot=bot)
     judge_model = JUDGE_MODELS.get(args.judge, JUDGE_MODELS["sonnet"])
     if bot == "abby":
         rubric = ABBY_RUBRIC
@@ -134,9 +149,15 @@ async def cmd_run(args):
     else:
         rubric = INSILVER_RUBRIC
     evaluator = Evaluator(rubric=rubric, model=judge_model)
-    runner = TestRunner(transport=transport, evaluator=evaluator, max_cost=args.budget)
+    runner = TestRunner(
+        transports=transports,
+        evaluator=evaluator,
+        max_cost=args.budget,
+        cli_transport=args.transport,
+        parallel=args.parallel,
+    )
 
-    log.info(f"Running {len(cases)} tests via {args.transport}, judge: {args.judge}")
+    log.info(f"Running {len(cases)} tests via {args.transport} (parallel={args.parallel}), judge: {args.judge}")
     result = await runner.run_suite(cases, bot_name=args.bot)
 
     # --verbose: повні транскрипти фейлів
@@ -265,7 +286,8 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_p = subparsers.add_parser("run", help="Run test suite")
-    run_p.add_argument("--transport", choices=["telegram", "direct"], default="direct")
+    run_p.add_argument("--transport", choices=["auto", "telegram", "direct"], default="auto")
+    run_p.add_argument("--parallel", type=int, default=5, help="Parallel direct cases (1=sequential). Telegram always sequential.")
     run_p.add_argument("--judge", choices=["haiku", "sonnet", "opus"], default="sonnet")
     run_p.add_argument("--bot", default="insilver", help="Bot name (insilver, garcia, etc)")
     run_p.add_argument("--block", action="append", help="Run specific block(s). Repeatable: --block pricing --block catalog")
