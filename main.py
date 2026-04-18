@@ -2,26 +2,43 @@
 """Ed — QA Agent for Telegram bots.
 
 Usage:
-  python main.py run [--transport telegram|direct] [--judge haiku|sonnet|opus]
-                     [--suite insilver_seeds.json] [--category pricing]
-                     [--budget 2.0] [--notify]
+  python main.py run [--transport auto|telegram|direct] [--judge haiku|sonnet|opus]
+                     [--parallel N] [--bot abby|insilver|garcia]
+                     [--block NAME] [--scenario NAME]
+                     [--budget 2.0] [--notify] [--verbose]
 
-  python main.py generate [--suite insilver_seeds.json] [--variations 5]
+  python main.py blocks --bot insilver        # Список блоків і кейсів
+  python main.py generate --variations 5      # Генерувати варіації
+  python main.py report [--file run_X.json]   # Показати звіт
 
-  python main.py report [--file run_2026-04-15.json]
+Transport routing:
+  auto (default) — роутер вибирає per-case: simple message+expect → direct,
+                   multi-step/click_intent/photo → telegram. Змішані блоки
+                   запускаються в одному прогоні без ручного перемикання.
+  direct         — python→python без Telegram (швидко, для simple кейсів)
+  telegram       — Telethon userbot (повільно, але з кнопками + фото)
+  Явне override на рівні кейса: "transport": "telegram" в JSON кейса.
+
+Parallelism (--parallel, default=5):
+  Direct-кейси йдуть через asyncio.Semaphore(N) — паралельно.
+  Telegram-кейси завжди послідовно (один Telethon client).
+  Tier 4 API витримує --parallel 10-20 без 429. Для insilver рекомендовано 10.
 
 Examples:
-  # Швидкий тест через direct, суддя Haiku
-  python main.py run --transport direct --judge haiku
+  # Рекомендований workflow — auto роутинг на Sonnet
+  python main.py run --bot insilver --judge sonnet --parallel 10
 
-  # Повний e2e через Telegram, суддя Sonnet, звіт в ТГ
-  python main.py run --transport telegram --judge sonnet --notify
+  # Швидкий smoke через Haiku
+  python main.py run --bot abby --judge haiku --block 01_smoke
 
-  # Тільки pricing
-  python main.py run --category pricing
+  # Тільки один блок, явно через telegram (override auto)
+  python main.py run --bot insilver --transport telegram --block 10_order_funnel
 
-  # Генерувати варіації
-  python main.py generate --variations 5
+  # Звіт в ТГ після прогону
+  python main.py run --bot garcia --judge sonnet --notify
+
+  # Ad-hoc seed з автогенерацією варіацій
+  python main.py run --bot insilver --seed "скільки коштує бісмарк?" --variations 5
 """
 import argparse
 import asyncio
