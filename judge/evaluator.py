@@ -2,6 +2,7 @@
 import json
 import logging
 import anthropic
+import asyncio
 from dataclasses import dataclass, field
 from typing import Optional
 from config import ANTHROPIC_API_KEY, JUDGE_MODEL, MODEL_COSTS
@@ -79,7 +80,8 @@ class Evaluator:
         user_prompt = self._build_user_prompt(test_case, bot_response_text, meta)
 
         try:
-            response = client.messages.create(
+            response = await asyncio.to_thread(
+                client.messages.create,
                 model=self.model,
                 max_tokens=1500,
                 system=JUDGE_SYSTEM_PROMPT,

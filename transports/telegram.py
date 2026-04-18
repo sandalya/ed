@@ -265,8 +265,12 @@ class TelegramTransport(BaseTransport):
         return result
 
     async def reset_conversation(self):
-        await self.send_command("/cancel")
-        await asyncio.sleep(0.3)
+        # /cancel відправляємо fire-and-forget (деякі боти не відповідають на нього,
+        # і тоді send_command висить RESPONSE_TIMEOUT секунд). Відповідь тут не потрібна.
+        await self.client.send_message(self._bot_entity, "/cancel")
+        log.info("Sent: /cancel (no wait)")
+        await asyncio.sleep(0.5)
+        # /start відправляємо нормально — очікуємо welcome-повідомлення
         await self.send_command("/start")
         await asyncio.sleep(1)
         log.info("Conversation reset via /cancel + /start")
