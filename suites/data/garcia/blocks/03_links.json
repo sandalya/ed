@@ -1,0 +1,30 @@
+[
+  {
+    "id": "garcia_blush_links",
+    "category": "links",
+    "message": "Порадь кремові рум'яна для Cool Summer колориту",
+    "context": "Запит на продукти — Garcia має зробити пошук і дати реальні URL",
+    "tags": ["links", "products"],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_have_real_links": true,
+      "should_not_ask_budget": true
+    }
+  },
+  {
+    "id": "garcia_foundation_links",
+    "category": "links",
+    "message": "Де купити тональний крем в Україні?",
+    "context": "Пряме питання 'де купити' — має дати реальні посилання",
+    "tags": ["links", "products"],
+    "edge_case": false,
+    "conversation": false,
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "should_have_real_links": true,
+      "should_not_say_search_yourself": true
+    }
+  }
+]

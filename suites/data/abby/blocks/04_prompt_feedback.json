@@ -1,0 +1,42 @@
+[
+    {
+        "id": "abby_feedback_fixes_not_dumps_01",
+        "category": "prompt_feedback",
+        "context": "Після генерації фото Ксю дає фідбек. Abby має згенерувати нове фото, а не скидати промпт текстом.",
+        "tags": [
+            "image_gen",
+            "feedback",
+            "regen"
+        ],
+        "edge_case": false,
+        "conversation": true,
+        "messages": [
+            {
+                "text": "Згенеруй фото: три друга-бразильця сміються на даху в Сан-Паулу вночі, Edison bulbs string lights, photorealistic 8K"
+            },
+            {
+                "text": "У лівого чоловіка щось не так із зубами — поправ"
+            }
+        ],
+        "expected_behavior": {
+            "should_generate_new_image_after_feedback": true,
+            "should_not_dump_prompt_as_text": true
+        }
+    },
+    {
+        "id": "abby_prompt_dump_uses_marker_01",
+        "category": "prompt_feedback",
+        "context": "Ксю явно просить скинути промпт текстом. Abby має використати роздільник ---PROMPT--- між коментарем і промптом.",
+        "tags": [
+            "prompt_dump",
+            "marker"
+        ],
+        "edge_case": false,
+        "conversation": false,
+        "message": "Згенеруй простий 3D банер з темним фоном, і дай мені сам промпт текстом — хочу скопіювати його в інший інструмент",
+        "expected_behavior": {
+            "should_include_prompt_marker": true,
+            "marker_on_own_line": true
+        }
+    }
+]

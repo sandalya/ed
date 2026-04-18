@@ -62,7 +62,7 @@ def get_transport(name: str, bot: str = "insilver"):
         return TelegramTransport(bot_username=bot_username)
     elif name == "direct":
         from transports.direct import DirectTransport
-        return DirectTransport()
+        return DirectTransport(bot_name=bot)
     else:
         raise ValueError(f"Unknown transport: {name}")
 

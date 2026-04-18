@@ -15,7 +15,7 @@ from config import (
 
 log = logging.getLogger("ed.transport.telegram")
 
-RESPONSE_TIMEOUT = 30
+RESPONSE_TIMEOUT = 90  # Garcia з search_products може відповідати 60+ секунд
 MULTI_MESSAGE_DELAY = 2.0
 BETWEEN_MESSAGES_DELAY = 2
 
