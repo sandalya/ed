@@ -15,7 +15,7 @@ def load_block(bot_name: str, block_name: str) -> list:
     blocks_dir = SUITES_DIR / bot_name / "blocks"
     for f in sorted(blocks_dir.glob("*.json")):
         name_part = f.stem.split("_", 1)[-1] if "_" in f.stem else f.stem
-        if name_part == block_name:
+        if name_part == block_name or f.stem == block_name:
             return _load_json(f)
     log.error(f"Block '{block_name}' not found in {blocks_dir}")
     return []
