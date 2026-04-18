@@ -38,156 +38,241 @@ class RunResult:
 
 
 class TestRunner:
-    def __init__(self, transport: BaseTransport, evaluator: Evaluator, max_cost: float = MAX_COST_PER_RUN):
-        self.transport = transport
+    def __init__(
+        self,
+        transports: dict | None = None,
+        evaluator: Evaluator = None,
+        max_cost: float = MAX_COST_PER_RUN,
+        cli_transport: str = "auto",
+        parallel: int = 1,
+        transport: BaseTransport | None = None,  # backward compat
+    ):
+        # Backward compat: якщо переданий одиничний transport — загорнути в dict
+        if transport is not None and transports is None:
+            tname = "telegram" if type(transport).__name__ == "TelegramTransport" else "direct"
+            transports = {tname: transport}
+            cli_transport = tname
+        if not transports:
+            raise ValueError("TestRunner: must provide transports dict or transport")
+        self.transports = transports
+        self.cli_transport = cli_transport
+        self.parallel = max(1, parallel)
         self.evaluator = evaluator
         self.max_cost = max_cost
         self._results: list = []
+        # self.transport — використовується в _resolve_intent; вказуємо на telegram
+        # якщо він є (бо click_intent можливий тільки через telegram), інакше на direct
+        self.transport = transports.get("telegram") or transports.get("direct")
 
     async def run_suite(self, cases: list, reset_between_tests: bool = True, bot_name: str | None = None) -> RunResult:
+        from runner.router import pick_transport, split_by_transport
+
         start_time = time.time()
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        log.info(f"Starting: {len(cases)} cases, judge: {self.evaluator.model}")
-        await self.transport.connect()
+
+        # Роутинг: визначаємо який транспорт потрібен для кожного кейса
+        groups = split_by_transport(cases, self.cli_transport)
+        n_direct = len(groups["direct"])
+        n_telegram = len(groups["telegram"])
+        log.info(
+            f"Starting: {len(cases)} cases "
+            f"(routed: {n_direct} direct, {n_telegram} telegram), "
+            f"parallel={self.parallel}, judge: {self.evaluator.model}"
+        )
+
+        # Конектимо лише транспорти які реально використовуються І доступні
+        active_transports = {}
+        for tname in ("direct", "telegram"):
+            if groups[tname] and tname in self.transports:
+                await self.transports[tname].connect()
+                active_transports[tname] = self.transports[tname]
+            elif groups[tname] and tname not in self.transports:
+                log.error(
+                    f"Router requires {tname} for {len(groups[tname])} cases but "
+                    f"--transport={self.cli_transport} excluded it. Skipping those cases."
+                )
+                groups[tname] = []
+
         passed = warned = failed = errors = 0
         critical_failures = []
         self._results = []
 
-        for i, case in enumerate(cases):
-            if self.evaluator.total_cost >= self.max_cost:
-                log.warning(f"Budget exceeded: ${self.evaluator.total_cost:.2f} >= ${self.max_cost:.2f}. Stopping at {i}/{len(cases)}.")
-                break
+        # Лічильник прогресу для логів (спільний для паралельних)
+        self._progress = {"done": 0, "total": n_direct + len(groups["telegram"])}
 
-            log.info(f"[{i+1}/{len(cases)}] {case['id']}")
-
-            # --- reset_before: shell hook перед кейсом ---
-            if case.get("reset_before") and bot_name:
-                from config import BOTS_CONFIG
-                reset_cmd = BOTS_CONFIG.get(bot_name, {}).get("reset_command")
-                if reset_cmd:
-                    log.info(f"  [reset_before] {reset_cmd[:80]}...")
-                    try:
-                        result = await asyncio.to_thread(
-                            subprocess.run, reset_cmd, shell=True,
-                            capture_output=True, text=True, timeout=30
-                        )
-                        if result.returncode != 0:
-                            log.warning(f"  [reset_before] exit={result.returncode} stderr={result.stderr[:200]}")
-                        else:
-                            log.info(f"  [reset_before] ok")
-                    except subprocess.TimeoutExpired:
-                        log.error(f"  [reset_before] TIMEOUT after 30s")
-                    except Exception as e:
-                        log.error(f"  [reset_before] error: {e}")
-                else:
-                    log.warning(f"  [reset_before] no reset_command configured for bot={bot_name}")
-
-            needs_reset = case.get("conversation") or case.get("reset_before", False)
-            # Не шлемо /start якщо перший крок тесту вже є /start
-            first_step_is_start = bool(
-                case.get("steps") and
-                len(case["steps"]) > 0 and
-                case["steps"][0].get("action") == "send" and
-                case["steps"][0].get("text", "").strip() == "/start"
-            )
-            if needs_reset and not first_step_is_start:
-                await self.transport.reset_conversation()
-                await asyncio.sleep(1)
-
-            assertion_results = []
-            if case.get("steps"):
-                bot_response, step_responses, assertion_results = await self._run_steps(case)
-            elif case.get("conversation"):
-                bot_response = await self._run_conversation_legacy(case)
-                step_responses = []
-                if case.get("assertions"):
-                    assertion_results = run_assertions(case["assertions"], bot_response)
+        # --- Direct гілка: паралельно якщо parallel >= 2, інакше послідовно ---
+        if groups["direct"]:
+            direct_transport = active_transports["direct"]
+            if self.parallel >= 2:
+                sem = asyncio.Semaphore(self.parallel)
+                async def run_one_direct(case):
+                    async with sem:
+                        return await self._run_single_case(case, direct_transport, bot_name)
+                direct_results = await asyncio.gather(
+                    *[run_one_direct(c) for c in groups["direct"]],
+                    return_exceptions=True,
+                )
             else:
-                bot_response = await self.transport.send_message(case["message"])
-                step_responses = []
-                if case.get("assertions"):
-                    assertion_results = run_assertions(case["assertions"], bot_response)
+                direct_results = []
+                for case in groups["direct"]:
+                    try:
+                        direct_results.append(await self._run_single_case(case, direct_transport, bot_name))
+                    except Exception as e:
+                        direct_results.append(e)
+            for case, outcome in zip(groups["direct"], direct_results):
+                self._accumulate(case, outcome, critical_failures)
+                if isinstance(outcome, Exception):
+                    errors += 1
+                else:
+                    verdict = outcome["verdict"]
+                    if verdict == "pass": passed += 1
+                    elif verdict == "warn": warned += 1
+                    elif verdict == "fail": failed += 1
+                    elif verdict == "error": errors += 1
 
-            assertion_failed = any(not ar.passed for ar in assertion_results)
-            if assertion_failed:
-                for ar in assertion_results:
-                    if not ar.passed:
-                        critical_failures.append(
-                            f"{case['id']}: assertion {ar.name} failed — expected={ar.expected}, actual={ar.actual}"
+        # --- Telegram гілка: завжди послідовно ---
+        if groups["telegram"]:
+            telegram_transport = active_transports["telegram"]
+            for i, case in enumerate(groups["telegram"]):
+                if self.evaluator.total_cost >= self.max_cost:
+                    log.warning(f"Budget exceeded: ${self.evaluator.total_cost:.2f} >= ${self.max_cost:.2f}. Stopping at {i}/{len(groups['telegram'])}.")
+                    break
+
+                log.info(f"[tg {i+1}/{n_telegram}] {case['id']}")
+
+                # --- reset_before: shell hook ---
+                if case.get("reset_before") and bot_name:
+                    from config import BOTS_CONFIG
+                    reset_cmd = BOTS_CONFIG.get(bot_name, {}).get("reset_command")
+                    if reset_cmd:
+                        log.info(f"  [reset_before] {reset_cmd[:80]}...")
+                        try:
+                            result = await asyncio.to_thread(
+                                subprocess.run, reset_cmd, shell=True,
+                                capture_output=True, text=True, timeout=30
+                            )
+                            if result.returncode != 0:
+                                log.warning(f"  [reset_before] exit={result.returncode} stderr={result.stderr[:200]}")
+                            else:
+                                log.info(f"  [reset_before] ok")
+                        except subprocess.TimeoutExpired:
+                            log.error(f"  [reset_before] TIMEOUT after 30s")
+                        except Exception as e:
+                            log.error(f"  [reset_before] error: {e}")
+                    else:
+                        log.warning(f"  [reset_before] no reset_command configured for bot={bot_name}")
+
+                needs_reset = case.get("conversation") or case.get("reset_before", False)
+                first_step_is_start = bool(
+                    case.get("steps") and
+                    len(case["steps"]) > 0 and
+                    case["steps"][0].get("action") == "send" and
+                    case["steps"][0].get("text", "").strip() == "/start"
+                )
+                if needs_reset and not first_step_is_start:
+                    await telegram_transport.reset_conversation()
+                    await asyncio.sleep(1)
+
+                assertion_results = []
+                if case.get("steps"):
+                    bot_response, step_responses, assertion_results = await self._run_steps(case, telegram_transport)
+                elif case.get("conversation"):
+                    bot_response = await self._run_conversation_legacy(case, telegram_transport)
+                    step_responses = []
+                    if case.get("assertions"):
+                        assertion_results = run_assertions(case["assertions"], bot_response)
+                else:
+                    bot_response = await telegram_transport.send_message(case["message"])
+                    step_responses = []
+                    if case.get("assertions"):
+                        assertion_results = run_assertions(case["assertions"], bot_response)
+
+                assertion_failed = any(not ar.passed for ar in assertion_results)
+                if assertion_failed:
+                    for ar in assertion_results:
+                        if not ar.passed:
+                            critical_failures.append(
+                                f"{case['id']}: assertion {ar.name} failed — expected={ar.expected}, actual={ar.actual}"
+                            )
+
+                judge_result = await self.evaluator.evaluate(
+                    test_case=case,
+                    bot_response_text=bot_response.text,
+                    bot_response_meta={
+                        "response_time": bot_response.response_time,
+                        "has_photos": bot_response.has_photos,
+                        "photo_count": bot_response.photo_count,
+                        "has_buttons": bot_response.has_buttons,
+                        "button_texts": bot_response.button_texts,
+                        "error": bot_response.error,
+                    },
+                )
+
+                if judge_result.error:
+                    errors += 1
+                elif assertion_failed:
+                    failed += 1
+                elif judge_result.overall_verdict == "pass":
+                    passed += 1
+                elif judge_result.overall_verdict == "warn":
+                    warned += 1
+                elif judge_result.overall_verdict == "fail":
+                    failed += 1
+                    if judge_result.critical_issues:
+                        critical_failures.extend(
+                            f"{case['id']}: {issue}" for issue in judge_result.critical_issues
                         )
 
-            judge_result = await self.evaluator.evaluate(
-                test_case=case,
-                bot_response_text=bot_response.text,
-                bot_response_meta={
-                    "response_time": bot_response.response_time,
-                    "has_photos": bot_response.has_photos,
-                    "photo_count": bot_response.photo_count,
-                    "has_buttons": bot_response.has_buttons,
-                    "button_texts": bot_response.button_texts,
-                    "error": bot_response.error,
-                },
-            )
-
-            if judge_result.error:
-                errors += 1
-            elif assertion_failed:
-                failed += 1
-            elif judge_result.overall_verdict == "pass":
-                passed += 1
-            elif judge_result.overall_verdict == "warn":
-                warned += 1
-            elif judge_result.overall_verdict == "fail":
-                failed += 1
-                if judge_result.critical_issues:
-                    critical_failures.extend(
-                        f"{case['id']}: {issue}" for issue in judge_result.critical_issues
-                    )
-
-            self._results.append({
-                "test_case": case,
-                "bot_response": {
-                    "text": bot_response.text,
-                    "response_time": bot_response.response_time,
-                    "has_photos": bot_response.has_photos,
-                    "photo_count": bot_response.photo_count,
-                    "has_buttons": bot_response.has_buttons,
-                    "button_texts": bot_response.button_texts,
-                    "error": bot_response.error,
-                },
-                "assertions": [
-                    {"name": ar.name, "passed": ar.passed, "expected": ar.expected, "actual": ar.actual}
-                    for ar in assertion_results
-                ],
-                "judge_result": {
-                    "overall_verdict": "fail" if assertion_failed else judge_result.overall_verdict,
-                    "summary": judge_result.summary,
-                    "criteria": [
-                        {"name": cr.name, "verdict": cr.verdict, "reason": cr.reason}
-                        for cr in judge_result.criteria_results
+                self._results.append({
+                    "test_case": case,
+                    "bot_response": {
+                        "text": bot_response.text,
+                        "response_time": bot_response.response_time,
+                        "has_photos": bot_response.has_photos,
+                        "photo_count": bot_response.photo_count,
+                        "has_buttons": bot_response.has_buttons,
+                        "button_texts": bot_response.button_texts,
+                        "error": bot_response.error,
+                    },
+                    "assertions": [
+                        {"name": ar.name, "passed": ar.passed, "expected": ar.expected, "actual": ar.actual}
+                        for ar in assertion_results
                     ],
-                    "critical_issues": judge_result.critical_issues,
-                    "cost": judge_result.judge_cost,
-                },
-            })
+                    "judge_result": {
+                        "overall_verdict": "fail" if assertion_failed else judge_result.overall_verdict,
+                        "summary": judge_result.summary,
+                        "criteria": [
+                            {"name": cr.name, "verdict": cr.verdict, "reason": cr.reason}
+                            for cr in judge_result.criteria_results
+                        ],
+                        "critical_issues": judge_result.critical_issues,
+                        "cost": judge_result.judge_cost,
+                    },
+                })
 
-            verdict_label = "FAIL(assertion)" if assertion_failed else judge_result.overall_verdict.upper()
-            log.info(f"  → {verdict_label} ({judge_result.summary[:60]})")
-            await asyncio.sleep(BETWEEN_TESTS_DELAY)
+                verdict_label = "FAIL(assertion)" if assertion_failed else judge_result.overall_verdict.upper()
+                log.info(f"  → {verdict_label} ({judge_result.summary[:60]})")
+                await asyncio.sleep(BETWEEN_TESTS_DELAY)
 
-        await self.transport.disconnect()
+        # Disconnect тільки активні транспорти
+        for tname, t in active_transports.items():
+            try:
+                await t.disconnect()
+            except Exception as e:
+                log.warning(f"disconnect {tname} error: {e}")
         duration = time.time() - start_time
         run_result = RunResult(
             timestamp=timestamp, total_cases=len(cases),
             passed=passed, warned=warned, failed=failed, errors=errors,
             critical_failures=critical_failures, results=self._results,
             judge_model=self.evaluator.model, total_cost=self.evaluator.total_cost,
-            duration=duration, transport_type=type(self.transport).__name__,
+            duration=duration, transport_type="+".join(sorted(active_transports.keys())) if active_transports else type(self.transport).__name__,
         )
         self._save_report(run_result, timestamp)
         return run_result
 
-    async def _run_steps(self, case: dict):
+    async def _run_steps(self, case: dict, transport=None):
+        transport = transport or self.transport
         step_responses = []
         all_texts = []
         all_assertion_results = []
@@ -198,21 +283,21 @@ class TestRunner:
             if action == "send":
                 text = step.get("text", "")
                 if text.startswith("/"):
-                    response = await self.transport.send_command(text)
+                    response = await transport.send_command(text)
                 else:
-                    response = await self.transport.send_message(text)
+                    response = await transport.send_message(text)
                 all_texts.append(f"USER: {text}")
             elif action == "click":
                 button_text = step.get("button_text", "")
                 button_data = step.get("button_data", "")
-                response = await self.transport.click_button(
+                response = await transport.click_button(
                     button_text=button_text, button_data=button_data
                 )
                 all_texts.append(f"CLICK: {button_text or button_data}")
             elif action == "photo":
                 photo_path = step.get("path", "")
                 caption = step.get("caption", "")
-                response = await self.transport.send_photo(photo_path, caption=caption)
+                response = await transport.send_photo(photo_path, caption=caption)
                 all_texts.append(f"PHOTO: {photo_path}")
             elif action == "wait":
                 await asyncio.sleep(step.get("seconds", 2))
@@ -223,7 +308,7 @@ class TestRunner:
                 # Беремо текст останнього повідомлення бота з попереднього кроку
                 if step_responses:
                     last_msg = step_responses[-1].text
-                btn_index = await self._resolve_intent(intent, last_msg, self.transport)
+                btn_index = await self._resolve_intent(intent, last_msg, transport)
                 if btn_index is None:
                     response = BotResponse(
                         text="", response_time=0,
@@ -235,7 +320,7 @@ class TestRunner:
                         btn_text = step_responses[-1].button_texts[btn_index]
                     else:
                         btn_text = ""
-                    response = await self.transport.click_button(button_text=btn_text)
+                    response = await transport.click_button(button_text=btn_text)
                 all_texts.append(f"CLICK_INTENT: {intent} -> {btn_text if btn_index is not None else 'FAILED'}")
             else:
                 log.warning(f"Unknown step action: {action}")
@@ -277,11 +362,12 @@ class TestRunner:
         )
         return combined, step_responses, all_assertion_results
 
-    async def _run_conversation_legacy(self, case: dict) -> BotResponse:
+    async def _run_conversation_legacy(self, case: dict, transport=None) -> BotResponse:
+        transport = transport or self.transport
         all_texts = []
         last_response = None
         for msg in case.get("messages", []):
-            response = await self.transport.send_message(msg["text"])
+            response = await transport.send_message(msg["text"])
             all_texts.append(f"USER: {msg['text']}")
             all_texts.append(f"BOT: {response.text}")
             last_response = response
@@ -378,6 +464,133 @@ index — з наданого списку. confidence=1.0 точний збіг
             log_entry["error"] = str(e)
             (INTENT_LOGS_DIR / f"error_{cache_key}.json").write_text(_json.dumps(log_entry, ensure_ascii=False, indent=2))
             return None
+
+
+    async def _run_single_case(self, case: dict, transport, bot_name: str | None):
+        """Виконує один кейс через заданий транспорт. Повертає dict з verdict+results або Exception."""
+        if self.evaluator.total_cost >= self.max_cost:
+            return {"verdict": "skip", "reason": "budget"}
+
+        log.info(f"[direct] {case['id']}")
+
+        # reset_before для direct теж
+        if case.get("reset_before") and bot_name:
+            from config import BOTS_CONFIG
+            reset_cmd = BOTS_CONFIG.get(bot_name, {}).get("reset_command")
+            if reset_cmd:
+                try:
+                    await asyncio.to_thread(
+                        subprocess.run, reset_cmd, shell=True,
+                        capture_output=True, text=True, timeout=30
+                    )
+                except Exception as e:
+                    log.warning(f"  [reset_before direct] {e}")
+
+        needs_reset = case.get("conversation") or case.get("reset_before", False)
+        first_step_is_start = bool(
+            case.get("steps") and
+            len(case["steps"]) > 0 and
+            case["steps"][0].get("action") == "send" and
+            case["steps"][0].get("text", "").strip() == "/start"
+        )
+        if needs_reset and not first_step_is_start:
+            await transport.reset_conversation()
+
+        assertion_results = []
+        if case.get("steps"):
+            bot_response, _step_responses, assertion_results = await self._run_steps(case, transport)
+        elif case.get("conversation"):
+            bot_response = await self._run_conversation_legacy(case, transport)
+            if case.get("assertions"):
+                assertion_results = run_assertions(case["assertions"], bot_response)
+        else:
+            bot_response = await transport.send_message(case["message"])
+            if case.get("assertions"):
+                assertion_results = run_assertions(case["assertions"], bot_response)
+
+        assertion_failed = any(not ar.passed for ar in assertion_results)
+
+        judge_result = await self.evaluator.evaluate(
+            test_case=case,
+            bot_response_text=bot_response.text,
+            bot_response_meta={
+                "response_time": bot_response.response_time,
+                "has_photos": bot_response.has_photos,
+                "photo_count": bot_response.photo_count,
+                "has_buttons": bot_response.has_buttons,
+                "button_texts": bot_response.button_texts,
+                "error": bot_response.error,
+            },
+        )
+
+        verdict = "error" if judge_result.error else (
+            "fail" if assertion_failed else judge_result.overall_verdict
+        )
+        verdict_label = "FAIL(assertion)" if assertion_failed else judge_result.overall_verdict.upper()
+        log.info(f"  → [{case['id']}] {verdict_label} ({judge_result.summary[:60]})")
+
+        return {
+            "verdict": verdict,
+            "case": case,
+            "bot_response": bot_response,
+            "assertion_results": assertion_results,
+            "judge_result": judge_result,
+            "assertion_failed": assertion_failed,
+        }
+
+    def _accumulate(self, case: dict, outcome, critical_failures: list):
+        """Записує результат кейса в self._results + оновлює critical_failures."""
+        if isinstance(outcome, Exception):
+            log.error(f"  {case['id']} raised: {outcome}")
+            self._results.append({
+                "test_case": case,
+                "bot_response": {"text": "", "response_time": 0, "has_photos": False,
+                                 "photo_count": 0, "has_buttons": False, "button_texts": [],
+                                 "error": str(outcome)},
+                "assertions": [],
+                "judge_result": {"overall_verdict": "error", "summary": f"Exception: {outcome}",
+                                 "criteria": [], "critical_issues": [str(outcome)], "cost": 0.0},
+            })
+            critical_failures.append(f"{case['id']}: exception {outcome}")
+            return
+        if outcome.get("verdict") == "skip":
+            return
+
+        ar = outcome["assertion_results"]
+        jr = outcome["judge_result"]
+        if outcome["assertion_failed"]:
+            for a in ar:
+                if not a.passed:
+                    critical_failures.append(
+                        f"{case['id']}: assertion {a.name} failed — expected={a.expected}, actual={a.actual}"
+                    )
+        if jr.overall_verdict == "fail" and jr.critical_issues:
+            critical_failures.extend(f"{case['id']}: {issue}" for issue in jr.critical_issues)
+
+        br = outcome["bot_response"]
+        self._results.append({
+            "test_case": case,
+            "bot_response": {
+                "text": br.text, "response_time": br.response_time,
+                "has_photos": br.has_photos, "photo_count": br.photo_count,
+                "has_buttons": br.has_buttons, "button_texts": br.button_texts,
+                "error": br.error,
+            },
+            "assertions": [
+                {"name": a.name, "passed": a.passed, "expected": a.expected, "actual": a.actual}
+                for a in ar
+            ],
+            "judge_result": {
+                "overall_verdict": "fail" if outcome["assertion_failed"] else jr.overall_verdict,
+                "summary": jr.summary,
+                "criteria": [
+                    {"name": cr.name, "verdict": cr.verdict, "reason": cr.reason}
+                    for cr in jr.criteria_results
+                ],
+                "critical_issues": jr.critical_issues,
+                "cost": jr.judge_cost,
+            },
+        })
 
     def _save_report(self, result: RunResult, timestamp: str):
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
