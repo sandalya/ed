@@ -1,0 +1,46 @@
+[
+  {
+    "id": "sam_tools_v2_search_rag",
+    "category": "tools_v2",
+    "message": "які в мене є notebooks по RAG?",
+    "context": "Natural chat тригерить tool search_notebooks з query='RAG'. Після Phase 2.6 tool читає з curriculum.json через shared.curriculum.load і шукає теми з nblm_notebook_id. Має знайти 'RAG — Retrieval Augmented Generation' і показати notebook URL або згадати що знайшов notebook по цій темі. НЕ має відповідати 'нічого не знайдено' (це був би регрес до legacy поведінки коли shim повертав {}).",
+    "tags": ["v2", "tools", "search_notebooks"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["RAG"],
+      "must_not_contain": ["Нічого не знайдено", "нічого не знайдено"]
+    }
+  },
+  {
+    "id": "sam_tools_v2_advance_topic",
+    "category": "tools_v2",
+    "message": "яку тему вчити далі?",
+    "context": "Natural chat тригерить tool advance_topic. В поточному стані 0 pending / 17 active / 1 mastered — тож tool має відпрацювати fallback і повернути першу active тему (Tool Use / Function Calling [tool_use_integration-1]). Sam має назвати конкретну тему, а не відповісти загальними словами. Прийнятно якщо згадає назву теми або її ID або сформулює 'пропоную почати з X'.",
+    "tags": ["v2", "tools", "advance_topic"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["Tool Use"]
+    }
+  },
+  {
+    "id": "sam_tools_v2_snapshot_count",
+    "category": "tools_v2",
+    "message": "скільки тем у моєму курікуломі?",
+    "context": "Snapshot після Phase 2.6 читає curriculum.json через shared.curriculum.load і віддає 18 тем (не 5 як було з legacy CURRICULUM). Sam має вказати число 18 (або дуже близьке — 17 active + 1 mastered). НЕ має казати 5 (це був би регрес до legacy seed-списку).",
+    "tags": ["v2", "snapshot", "count"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["18"],
+      "must_not_contain": ["5 тем", "п'ять тем"]
+    }
+  }
+]

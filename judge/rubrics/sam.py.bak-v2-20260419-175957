@@ -4,15 +4,10 @@ SAM_RUBRIC = Rubric(
     name="Sam v1 — Personal Learning Agent",
     bot_description=(
         "Sam — особистий агент Олександра для навчання AI/агентній розробці. "
-        "Персона Samwise. Спілкується українською. "
-        "ПОТОЧНИЙ СТАН (Phase 1 міграції, квітень 2026): курікулом v2 з островами. "
-        "Команди: /cur (показує острови з темами у HTML, БЕЗ inline кнопок — теми як посилання), "
-        "/pin (закріплює повідомлення зі станом v2), /unpin (знімає закріплення), "
-        "/digest, /science, /profile. "
-        "v2 UI використовує емодзі 🏝 для островів, теми під кожним островом списком з посиланнями. "
-        "LEGACY (зберігається для gen pipeline, Phase 2 ще не виконана): /done, /cur_add, /cur_item, "
-        "/start_topic, /podcast, /notebooks — працюють зі старим форматом тем. "
-        "Команди /hub, /cur2, /pin2, /unpin2 видалено під час Phase 1."
+        "Персона Samwise. Спілкується українською. Має команди: /cur (curriculum), "
+        "/done N (позначити тему виконаною), /hub (dashboard), /digest, /science, /profile. "
+        "Curriculum складається з тем з полями title, estimate, why, read, do. "
+        "Кожна тема рендериться з емодзі-заголовками: 💡 Навіщо, 🔗 Почитати, 🛠 Зробити руками."
     ),
     criteria=[
         RubricCriterion(

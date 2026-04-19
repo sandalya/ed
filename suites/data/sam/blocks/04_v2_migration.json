@@ -1,0 +1,68 @@
+[
+  {
+    "id": "sam_v2_cur_renders_islands",
+    "category": "curriculum_v2",
+    "message": "/cur",
+    "context": "Після Phase 1 міграції Sam /cur рендерить pinned v2 UI з островами. Має бути HTML (не Markdown), без inline кнопок, з емодзі островів 🏝, з назвами островів і тем під ними. Legacy hub_page видалено.",
+    "tags": [
+      "v2",
+      "curriculum",
+      "smoke"
+    ],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": [
+        "🏝"
+      ],
+      "must_have_buttons": false
+    }
+  },
+  {
+    "id": "sam_v2_pin_creates",
+    "category": "curriculum_v2",
+    "message": "/pin",
+    "context": "/pin створює закріплене повідомлення з v2 структурою (острови + теми). Reply має містити 'закріплено' (будь-який регістр). Pinned message має містити емодзі 🏝.",
+    "tags": [
+      "v2",
+      "pinned",
+      "create"
+    ],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": [
+        "акріпл"
+      ],
+      "must_have_pinned": true,
+      "pinned_must_contain": [
+        "🏝"
+      ]
+    }
+  },
+  {
+    "id": "sam_v2_unpin_clears",
+    "category": "curriculum_v2",
+    "message": "/unpin",
+    "context": "/unpin знімає закріплене повідомлення. Reply повинен містити форму слова 'знято' або 'відкріплено'. Pinned має стати порожнім.",
+    "tags": [
+      "v2",
+      "pinned",
+      "clear"
+    ],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": [
+        "нят"
+      ],
+      "pinned_must_be_empty": true
+    }
+  }
+]
