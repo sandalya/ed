@@ -275,6 +275,36 @@ class TelegramTransport(BaseTransport):
         await asyncio.sleep(1)
         log.info("Conversation reset via /cancel + /start")
 
+
+    async def get_pinned_message(self) -> tuple:
+        """
+        Повертає (raw_text, [button_texts]) закріпленого повідомлення у чаті з ботом.
+        Якщо немає — ("", []).
+        """
+        from telethon.tl.functions.messages import GetHistoryRequest
+        from telethon.tl.types import ReplyInlineMarkup
+        try:
+            full = await self.client.get_entity(self._bot_entity)
+            # Отримуємо messages з фільтром pinned
+            from telethon.tl.types import InputMessagesFilterPinned
+            pinned_msgs = await self.client.get_messages(
+                self._bot_entity, limit=1, filter=InputMessagesFilterPinned
+            )
+            if not pinned_msgs:
+                return ("", [])
+            msg = pinned_msgs[0]
+            text = msg.raw_text or ""
+            buttons = []
+            if isinstance(msg.reply_markup, ReplyInlineMarkup):
+                for row in msg.reply_markup.rows:
+                    for btn in row.buttons:
+                        buttons.append(btn.text)
+            return (text, buttons)
+        except Exception as e:
+            import logging
+            logging.getLogger("ed.transport.telegram").warning(f"get_pinned_message failed: {e}")
+            return ("", [])
+
     async def disconnect(self):
         await self.client.disconnect()
         log.info("Disconnected from Telegram")

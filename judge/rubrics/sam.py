@@ -58,6 +58,17 @@ SAM_RUBRIC = Rubric(
             weight=1.5,
         ),
         RubricCriterion(
+            name="pinned_state_correct",
+            description=(
+                "Якщо у тест-кейсі задано expected_behavior.pinned_must_contain (список рядків) — "
+                "ВСІ ці рядки мають бути у тексті закріпленого повідомлення (див. секцію "
+                "'📌 Закріплене повідомлення' у мета-інформації). "
+                "Якщо задано expected_behavior.pinned_must_be_empty=true — pinned має бути порожнім. "
+                "Якщо pinned-related поля не задані в кейсі — критерій pass автоматично."
+            ),
+            weight=2.0,
+        ),
+        RubricCriterion(
             name="no_sycophantic_phrases",
             description=(
                 "Без фраз 'Звісно!', 'Чудово!', 'Чудовий вибір!', 'Радий допомогти', "

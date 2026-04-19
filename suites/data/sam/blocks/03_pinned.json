@@ -1,0 +1,62 @@
+[
+  {
+    "id": "sam_pin_01_cleanup",
+    "category": "pinned",
+    "message": "/unpin",
+    "context": "Setup: очистити попередній pinned стан щоб наступні тести були детерміновані. Очікуємо reply типу 'Знято' або 'Нічого не було закріплено' — залежить від попереднього стану.",
+    "tags": ["pinned", "setup"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true
+    }
+  },
+  {
+    "id": "sam_pin_02_creates",
+    "category": "pinned",
+    "message": "/pin",
+    "context": "Створення pinned /hub вперше. Має прийти reply 'Закріплено...' та закріпитися повідомлення з curriculum overview.",
+    "tags": ["pinned", "create"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["Закріплено"],
+      "must_have_pinned": true,
+      "pinned_must_contain": ["Tool Use"]
+    }
+  },
+  {
+    "id": "sam_pin_03_auto_refresh",
+    "category": "pinned",
+    "message": "/done 2",
+    "context": "Авто-оновлення: /done 2 має оновити закріплене повідомлення — тема 2 (Agentic Loops) маркується ✅, прогрес у pinned росте. Pinned має містити 'Agentic Loops' зі знаком виконання.",
+    "tags": ["pinned", "auto-refresh"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["Agentic Loops", "виконано"],
+      "must_have_pinned": true,
+      "pinned_must_contain": ["Agentic Loops"]
+    }
+  },
+  {
+    "id": "sam_pin_04_clears",
+    "category": "pinned",
+    "message": "/unpin",
+    "context": "Знімання закріплення. Має прийти reply 'Знято', pinned повинен стати порожнім.",
+    "tags": ["pinned", "clear"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["Знято"],
+      "pinned_must_be_empty": true
+    }
+  }
+]

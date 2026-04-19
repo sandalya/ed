@@ -18,6 +18,8 @@ class BotResponse:
     error: Optional[str] = None
     all_texts: list = field(default_factory=list)
     caption_texts: list = field(default_factory=list)
+    pinned_text: str = ""
+    pinned_buttons: list = field(default_factory=list)
 
 
 class BaseTransport(ABC):

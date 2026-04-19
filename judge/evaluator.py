@@ -149,6 +149,16 @@ class Evaluator:
             )
         else:
             meta_lines.append("Inline-кнопок немає")
+        pinned_text = meta.get("pinned_text", "")
+        pinned_buttons = meta.get("pinned_buttons", [])
+        if pinned_text or pinned_buttons:
+            meta_lines.append("")
+            meta_lines.append("📌 Закріплене повідомлення (pinned) у чаті:")
+            meta_lines.append("--- pinned_text ---")
+            meta_lines.append(pinned_text or "(порожньо)")
+            meta_lines.append("--- /pinned_text ---")
+            if pinned_buttons:
+                meta_lines.append(f"Кнопки у pinned: {', '.join(pinned_buttons)}")
         meta_str = "\n".join(meta_lines) if meta_lines else "немає"
 
         expected = test_case.get("expected_behavior", {})

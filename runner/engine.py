@@ -195,6 +195,7 @@ class TestRunner:
                                 f"{case['id']}: assertion {ar.name} failed — expected={ar.expected}, actual={ar.actual}"
                             )
 
+                pinned_text, pinned_buttons = await self._maybe_fetch_pinned(case, telegram_transport)
                 judge_result = await self.evaluator.evaluate(
                     test_case=case,
                     bot_response_text=bot_response.text,
@@ -205,6 +206,8 @@ class TestRunner:
                         "has_buttons": bot_response.has_buttons,
                         "button_texts": bot_response.button_texts,
                         "error": bot_response.error,
+                        "pinned_text": pinned_text,
+                        "pinned_buttons": pinned_buttons,
                     },
                 )
 
@@ -270,6 +273,33 @@ class TestRunner:
         )
         self._save_report(run_result, timestamp)
         return run_result
+
+
+    async def _maybe_fetch_pinned(self, case: dict, transport) -> tuple:
+        """
+        Якщо case очікує перевірку pinned (must_have_pinned=true або задано pinned_must_contain /
+        pinned_must_be_empty) — тягне pinned message з transport.
+        Повертає (pinned_text, pinned_buttons). Без потреби — ("", []).
+        """
+        expected = case.get("expected_behavior", {})
+        needs_pinned = (
+            expected.get("must_have_pinned") is True
+            or "pinned_must_contain" in expected
+            or expected.get("pinned_must_be_empty") is True
+        )
+        if not needs_pinned:
+            return ("", [])
+        if not hasattr(transport, "get_pinned_message"):
+            return ("", [])
+        import asyncio
+        # Дати боту час обробити auto-refresh hook
+        await asyncio.sleep(0.8)
+        try:
+            return await transport.get_pinned_message()
+        except Exception as e:
+            import logging
+            logging.getLogger("ed.runner").warning(f"fetch pinned failed: {e}")
+            return ("", [])
 
     async def _run_steps(self, case: dict, transport=None):
         transport = transport or self.transport
@@ -510,6 +540,7 @@ index — з наданого списку. confidence=1.0 точний збіг
 
         assertion_failed = any(not ar.passed for ar in assertion_results)
 
+        pinned_text, pinned_buttons = await self._maybe_fetch_pinned(case, transport)
         judge_result = await self.evaluator.evaluate(
             test_case=case,
             bot_response_text=bot_response.text,
@@ -520,6 +551,8 @@ index — з наданого списку. confidence=1.0 точний збіг
                 "has_buttons": bot_response.has_buttons,
                 "button_texts": bot_response.button_texts,
                 "error": bot_response.error,
+                "pinned_text": pinned_text,
+                "pinned_buttons": pinned_buttons,
             },
         )
 
