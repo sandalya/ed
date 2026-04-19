@@ -1,9 +1,23 @@
-venv/
-.env
+# Runtime logs
+*.log
+
+# Test reports (генеруються з кожним прогоном)
+reports/history/
+
+# Telethon session (приватні ключі)
+data/telethon_session/
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
-ed.log
-data/telethon_session/*.session
-data/telethon_session/*.session-journal
-reports/history/*.json
+
+# venv
+venv/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
