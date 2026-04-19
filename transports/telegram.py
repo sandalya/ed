@@ -97,9 +97,9 @@ class TelegramTransport(BaseTransport):
         raw = []
 
         for msg in self._responses:
-            if msg.text:
-                texts.append(msg.text)
-                all_texts.append(msg.text)
+            if msg.raw_text:
+                texts.append(msg.raw_text)
+                all_texts.append(msg.raw_text)
             if isinstance(msg.media, MessageMediaPhoto):
                 has_photos = True
                 photo_count += 1
@@ -116,7 +116,7 @@ class TelegramTransport(BaseTransport):
                             bd = btn.data.decode("utf-8") if isinstance(btn.data, bytes) else str(btn.data)
                             button_data.append(bd)
             raw.append({
-                "text": msg.text or "",
+                "text": msg.raw_text or "",
                 "has_photo": isinstance(msg.media, MessageMediaPhoto),
                 "caption": msg.message if isinstance(msg.media, MessageMediaPhoto) else "",
                 "buttons": [
@@ -253,7 +253,7 @@ class TelegramTransport(BaseTransport):
         result = []
         for msg in messages:
             result.append({
-                "text": msg.text or "",
+                "text": msg.raw_text or "",
                 "has_photo": isinstance(msg.media, MessageMediaPhoto),
                 "buttons": [
                     b.text

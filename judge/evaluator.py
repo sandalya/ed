@@ -135,16 +135,38 @@ class Evaluator:
         if meta.get("response_time"):
             meta_lines.append(f"Час відповіді: {meta['response_time']:.1f}с")
         if meta.get("has_photos"):
-            meta_lines.append("Бот надіслав фото")
-        if meta.get("has_buttons"):
-            meta_lines.append(f"Кнопки: {', '.join(meta.get('button_texts', []))}")
+            photo_count = meta.get("photo_count", 1)
+            meta_lines.append(f"Бот надіслав {photo_count} фото")
+        btn_texts = meta.get("button_texts", [])
+        if btn_texts:
+            meta_lines.append(
+                f"Inline-кнопки Telegram (під повідомленням): {len(btn_texts)} шт. — "
+                f"{', '.join(btn_texts)}"
+            )
+            meta_lines.append(
+                "ВАЖЛИВО: кнопки не з'являються В ТЕКСТІ відповіді. Вони прикріплені до "
+                "повідомлення як InlineKeyboardMarkup. Факт їхньої наявності ≠ їх згадування в тексті."
+            )
+        else:
+            meta_lines.append("Inline-кнопок немає")
         meta_str = "\n".join(meta_lines) if meta_lines else "немає"
 
         expected = test_case.get("expected_behavior", {})
         expected_lines = []
         for key, val in expected.items():
             readable = key.replace("_", " ").replace("should ", "")
-            expected_lines.append(f"- {'МАЄ' if val else 'НЕ МАЄ'}: {readable}")
+            if isinstance(val, bool):
+                expected_lines.append(f"- {'МАЄ' if val else 'НЕ МАЄ'}: {readable}")
+            elif isinstance(val, list):
+                if val:
+                    items = ", ".join(f"'{x}'" for x in val)
+                    expected_lines.append(f"- {readable}: {items}")
+                else:
+                    expected_lines.append(f"- {readable}: (порожньо — критерій не активний)")
+            elif isinstance(val, (int, float)):
+                expected_lines.append(f"- {readable}: {val}")
+            else:
+                expected_lines.append(f"- {readable}: {val}")
         expected_str = "\n".join(expected_lines) if expected_lines else "немає"
 
         return f"""## Тест-кейс

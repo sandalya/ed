@@ -14,3 +14,7 @@ insilver:
 garcia:
   username: "@garcia_ksu_bot"
   reset_command: null
+sam:
+  username: "@sashoks_assistant1_sam_bot"
+  # Sam має learning_state.json, але для QA не скидаємо — тести орієнтовані на існуючі теми
+  reset_command: null

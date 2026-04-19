@@ -1,0 +1,75 @@
+[
+  {
+    "id": "sam_cur_list_01",
+    "category": "curriculum",
+    "message": "/cur",
+    "context": "Головний список curriculum. Має показати хоча б перші 5 тем (Tool Use, Agentic Loops, Evals, RAG, Multi-agent) та progress bar.",
+    "tags": ["curriculum", "list"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["Curriculum", "Tool Use"],
+      "must_have_buttons": true,
+      "button_count_min": 4
+    }
+  },
+  {
+    "id": "sam_cur_item_01",
+    "category": "curriculum",
+    "message": "/cur_item",
+    "context": "/cur_item показує список тем як текстовий перегляд. Має бути progress bar та список всіх тем з номерами.",
+    "tags": ["curriculum", "item"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["Tool Use", "Agentic Loops", "Evals"],
+      "must_have_buttons": true
+    }
+  },
+  {
+    "id": "sam_cur_done_valid_01",
+    "category": "curriculum",
+    "message": "/done 1",
+    "context": "Позначення теми 1 (Tool Use) як виконаної. Має показати підтвердження з прогрес-баром та наступну тему.",
+    "tags": ["curriculum", "done"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["виконано", "Tool Use"]
+    }
+  },
+  {
+    "id": "sam_cur_done_noargs_01",
+    "category": "curriculum",
+    "message": "/done",
+    "context": "/done без аргументу — edge case. Має показати хелп 'Використання: /done <N>'.",
+    "tags": ["curriculum", "done", "edge"],
+    "edge_case": true,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["Використання", "/done"]
+    }
+  },
+  {
+    "id": "sam_cur_done_invalid_01",
+    "category": "curriculum",
+    "message": "/done 999",
+    "context": "/done з неіснуючим ID — edge case. Має показати 'Тема 999 не існує' або аналогічне повідомлення.",
+    "tags": ["curriculum", "done", "edge"],
+    "edge_case": true,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["999", "не існує"]
+    }
+  }
+]

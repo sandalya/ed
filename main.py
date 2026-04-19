@@ -57,6 +57,7 @@ from judge.evaluator import Evaluator
 from judge.rubrics.insilver import INSILVER_RUBRIC
 from judge.rubrics.abby import ABBY_RUBRIC
 from judge.rubrics.garcia import GARCIA_RUBRIC
+from judge.rubrics.sam import SAM_RUBRIC
 from runner.engine import TestRunner
 from reports.formatter import format_terminal_report, format_telegram_report, format_verbose_report
 
@@ -163,6 +164,8 @@ async def cmd_run(args):
         rubric = ABBY_RUBRIC
     elif bot == "garcia":
         rubric = GARCIA_RUBRIC
+    elif bot == "sam":
+        rubric = SAM_RUBRIC
     else:
         rubric = INSILVER_RUBRIC
     evaluator = Evaluator(rubric=rubric, model=judge_model)

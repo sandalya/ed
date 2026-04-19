@@ -1,0 +1,30 @@
+[
+  {
+    "id": "sam_smoke_start_01",
+    "category": "smoke",
+    "message": "/start",
+    "context": "Sam відповідає на /start — коротке привітання + список основних команд.",
+    "tags": ["smoke", "start"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_contain": ["Sam", "/cur"]
+    }
+  },
+  {
+    "id": "sam_smoke_hub_01",
+    "category": "smoke",
+    "message": "/hub",
+    "context": "Hub dashboard з оглядом curriculum прогресу та кнопками навігації.",
+    "tags": ["smoke", "hub"],
+    "edge_case": false,
+    "conversation": false,
+    "transport": "telegram",
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true,
+      "must_have_buttons": true
+    }
+  }
+]
