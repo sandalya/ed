@@ -157,11 +157,91 @@ def _run_one(assertion: dict, response, step_responses: list = None) -> Assertio
                 actual=f"{price} грн",
             )
 
+        elif a_type == "no_bot_response":
+            # Перевіряє що бот не відповів (порожній текст і немає фото)
+            expected_no_response = assertion.get("value", True)
+            is_empty = (not target.text or not target.text.strip()) and not target.has_photos
+            return AssertionResult(
+                name="no_bot_response",
+                passed=(is_empty == expected_no_response),
+                expected=f"no_response={expected_no_response}",
+                actual=f"no_response={is_empty} (text_len={len(target.text or '')}, has_photos={target.has_photos})",
+            )
+
         elif a_type == "admin_received":
             return AssertionResult(
-                name="admin_received", passed=True,
+                name="admin_received", passed=False,
                 expected="admin check", actual="deferred to engine",
-                message="Checked in engine.py",
+                message="__pending__: resolved in engine.py via transport",
+            )
+
+        elif a_type == "order_saved":
+            # Перевіряє що в файлі-масиві JSON з\'явився ордер з потрібними полями.
+            # Параметри:
+            #   file_path: str — шлях до JSON-масиву (напр. data/orders/orders.json цільового бота)
+            #   min_count: int (optional) — мінімальна кількість ордерів у файлі
+            #   last_contains: dict (optional) — поля які мають бути в останньому ордері
+            #     (значення перевіряються через substring match для строк, eq для чисел)
+            import json
+            from pathlib import Path as _P
+            file_path = assertion.get("file_path", "")
+            if not file_path:
+                return AssertionResult(
+                    name="order_saved", passed=False,
+                    expected="file_path set", actual="empty",
+                    message="order_saved requires file_path",
+                )
+            fp = _P(file_path)
+            if not fp.exists():
+                return AssertionResult(
+                    name="order_saved", passed=False,
+                    expected=f"file exists: {file_path}", actual="missing",
+                )
+            try:
+                orders = json.loads(fp.read_text(encoding="utf-8"))
+            except Exception as e:
+                return AssertionResult(
+                    name="order_saved", passed=False,
+                    expected="valid JSON array", actual=f"parse error: {e}",
+                )
+            if not isinstance(orders, list):
+                return AssertionResult(
+                    name="order_saved", passed=False,
+                    expected="JSON array", actual=type(orders).__name__,
+                )
+            min_count = assertion.get("min_count")
+            if min_count is not None and len(orders) < min_count:
+                return AssertionResult(
+                    name="order_saved", passed=False,
+                    expected=f"min_count={min_count}", actual=f"count={len(orders)}",
+                )
+            last_contains = assertion.get("last_contains")
+            if last_contains:
+                if not orders:
+                    return AssertionResult(
+                        name="order_saved", passed=False,
+                        expected=f"last order with {last_contains}", actual="empty array",
+                    )
+                last = orders[-1]
+                for k, v in last_contains.items():
+                    actual_v = last.get(k)
+                    if isinstance(v, str):
+                        if actual_v is None or v.lower() not in str(actual_v).lower():
+                            return AssertionResult(
+                                name="order_saved", passed=False,
+                                expected=f"{k} contains '{v}'",
+                                actual=f"{k}={actual_v}",
+                            )
+                    else:
+                        if actual_v != v:
+                            return AssertionResult(
+                                name="order_saved", passed=False,
+                                expected=f"{k}={v}", actual=f"{k}={actual_v}",
+                            )
+            return AssertionResult(
+                name="order_saved", passed=True,
+                expected="order saved with required fields",
+                actual=f"count={len(orders)}, last_id={orders[-1].get('id') if orders else 'none'}",
             )
 
         else:

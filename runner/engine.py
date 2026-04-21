@@ -187,6 +187,7 @@ class TestRunner:
                     if case.get("assertions"):
                         assertion_results = run_assertions(case["assertions"], bot_response)
 
+                assertion_results = await self._resolve_admin_assertions(case, assertion_results, telegram_transport)
                 assertion_failed = any(not ar.passed for ar in assertion_results)
                 if assertion_failed:
                     for ar in assertion_results:
@@ -300,6 +301,82 @@ class TestRunner:
             import logging
             logging.getLogger("ed.runner").warning(f"fetch pinned failed: {e}")
             return ("", [])
+
+    async def _resolve_admin_assertions(self, case: dict, assertion_results: list, transport) -> list:
+        """Перехоплює admin_received assertions (які assertions.py мітить як __pending__)
+        і виконує їх через transport.get_admin_messages()."""
+        # Збираємо всі admin_received assertions з case (global + steps)
+        admin_asserts = []
+        for a in case.get("assertions", []) or []:
+            if a.get("type") == "admin_received":
+                admin_asserts.append(a)
+        for step in case.get("steps", []) or []:
+            for a in step.get("assertions", []) or []:
+                if a.get("type") == "admin_received":
+                    admin_asserts.append(a)
+        if not admin_asserts:
+            return assertion_results
+        # Готуємо транспорт (для fallback-кейсів де transport=None)
+        if transport is None:
+            return assertion_results
+        # Знаходимо pending-результати та замінюємо їх
+        pending_idx = [i for i, r in enumerate(assertion_results)
+                       if r.name == "admin_received" and "__pending__" in (r.message or "")]
+        # Виконуємо admin перевірки (одна на всі — читаємо один раз, матчимо по черзі)
+        try:
+            # Максимальний timeout серед усіх — один читаємо раз
+            max_timeout = max(float(a.get("within_seconds", 3)) for a in admin_asserts)
+            max_count = max(int(a.get("count", 5)) for a in admin_asserts)
+            admin_msgs = await transport.get_admin_messages(count=max_count, timeout=max_timeout)
+        except Exception as e:
+            from runner.assertions import AssertionResult
+            for i in pending_idx:
+                assertion_results[i] = AssertionResult(
+                    name="admin_received", passed=False,
+                    expected="admin messages readable",
+                    actual=f"transport error: {e}",
+                )
+            return assertion_results
+        # Помилка конфіга
+        if admin_msgs and isinstance(admin_msgs[0], dict) and admin_msgs[0].get("error"):
+            from runner.assertions import AssertionResult
+            for i in pending_idx:
+                assertion_results[i] = AssertionResult(
+                    name="admin_received", passed=False,
+                    expected="ADMIN_VERIFY_CHAT_ID configured",
+                    actual=admin_msgs[0]["error"],
+                )
+            return assertion_results
+        # Для кожного pending — матчимо відповідну admin_asserts[k]
+        from runner.assertions import AssertionResult
+        for k, idx in enumerate(pending_idx):
+            if k >= len(admin_asserts):
+                break
+            a = admin_asserts[k]
+            expected_text = a.get("text_contains", "")
+            expected_buttons = a.get("has_buttons")
+            # Шукаємо повідомлення яке матчить
+            matched_msg = None
+            for msg in admin_msgs:
+                if expected_text and expected_text.lower() not in msg.get("text", "").lower():
+                    continue
+                if expected_buttons is True and not msg.get("buttons"):
+                    continue
+                matched_msg = msg
+                break
+            if matched_msg:
+                assertion_results[idx] = AssertionResult(
+                    name="admin_received", passed=True,
+                    expected=f"admin msg with '{expected_text}'" if expected_text else "admin msg received",
+                    actual=f"matched: {matched_msg.get('text', '')[:80]}",
+                )
+            else:
+                assertion_results[idx] = AssertionResult(
+                    name="admin_received", passed=False,
+                    expected=f"admin msg with '{expected_text}'" if expected_text else "admin msg received",
+                    actual=f"no match in last {len(admin_msgs)} admin messages",
+                )
+        return assertion_results
 
     async def _run_steps(self, case: dict, transport=None):
         transport = transport or self.transport
