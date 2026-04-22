@@ -16,6 +16,8 @@ import hashlib
 import json as _json
 from pathlib import Path
 from runner.assertions import run_assertions, AssertionResult
+from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 log = logging.getLogger("ed.runner")
 
@@ -134,11 +136,22 @@ class TestRunner:
         # --- Telegram гілка: завжди послідовно ---
         if groups["telegram"]:
             telegram_transport = active_transports["telegram"]
+            _log_redirect_ctx = logging_redirect_tqdm()
+            _log_redirect_ctx.__enter__()
+            _progress_bar = tqdm(
+                total=n_telegram,
+                desc="Running tests",
+                unit="case",
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+                dynamic_ncols=True,
+                leave=True,
+            )
             for i, case in enumerate(groups["telegram"]):
                 if self.evaluator.total_cost >= self.max_cost:
                     log.warning(f"Budget exceeded: ${self.evaluator.total_cost:.2f} >= ${self.max_cost:.2f}. Stopping at {i}/{len(groups['telegram'])}.")
                     break
 
+                _progress_bar.set_description(f"{case['id'][:40]}")
                 log.info(f"[tg {i+1}/{n_telegram}] {case['id']}")
 
                 # --- reset_before: shell hook ---
@@ -260,6 +273,9 @@ class TestRunner:
                 verdict_label = "FAIL(assertion)" if assertion_failed else judge_result.overall_verdict.upper()
                 log.info(f"  → {verdict_label} ({judge_result.summary[:60]})")
                 await asyncio.sleep(BETWEEN_TESTS_DELAY)
+                _progress_bar.update(1)
+            _progress_bar.close()
+            _log_redirect_ctx.__exit__(None, None, None)
 
         # Disconnect тільки активні транспорти
         for tname, t in active_transports.items():

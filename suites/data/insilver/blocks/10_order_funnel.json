@@ -189,6 +189,23 @@
             "value": "Замовлення"
           },
           {
+            "type": "text_contains",
+            "value": "Перевірте замовлення"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Підтвердити",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "text_contains",
+            "value": "прийнято"
+          },
+          {
             "type": "order_saved",
             "file_path": "/home/sashok/.openclaw/workspace/insilver-v3/data/orders/orders.json",
             "last_contains": {
@@ -571,6 +588,23 @@
         "assertions": [
           {
             "type": "no_error"
+          },
+          {
+            "type": "text_contains",
+            "value": "Перевірте замовлення"
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Підтвердити",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "text_contains",
+            "value": "прийнято"
           }
         ]
       }
