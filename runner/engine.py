@@ -170,8 +170,10 @@ class TestRunner:
                     case["steps"][0].get("action") == "send" and
                     case["steps"][0].get("text", "").strip() == "/start"
                 )
-                if needs_reset and not first_step_is_start:
-                    await telegram_transport.reset_conversation()
+                if needs_reset:
+                    # /cancel завжди (щоб вийти з ConversationHandler попереднього кейсу),
+                    # /start тільки якщо перший крок не /start
+                    await telegram_transport.reset_conversation(include_start=not first_step_is_start)
                     await asyncio.sleep(1)
 
                 assertion_results = []
