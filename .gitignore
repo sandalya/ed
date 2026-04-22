@@ -21,3 +21,10 @@ venv/
 # IDE
 .vscode/
 .idea/
+
+# Intent matcher cache (generated at runtime, not source)
+data/intent_logs/
+
+# Backup files from patch scripts
+*.bak
+*.bak_*

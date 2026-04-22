@@ -51,6 +51,19 @@
       },
       {
         "action": "click_intent",
+        "intent": "Ланцюжок",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
         "intent": "Бісмарк",
         "assertions": [
           {
@@ -182,6 +195,19 @@
       },
       {
         "action": "click_intent",
+        "intent": "Ланцюжок",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
         "intent": "Якір",
         "assertions": [
           {
@@ -239,6 +265,19 @@
       },
       {
         "action": "click_intent",
+        "intent": "Ланцюжок",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
         "intent": "Бісмарк",
         "assertions": [
           {
@@ -284,6 +323,19 @@
       {
         "action": "send",
         "text": "/order",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Ланцюжок",
         "assertions": [
           {
             "type": "no_error"
@@ -359,6 +411,19 @@
       {
         "action": "send",
         "text": "/order",
+        "assertions": [
+          {
+            "type": "no_error"
+          },
+          {
+            "type": "has_buttons",
+            "value": true
+          }
+        ]
+      },
+      {
+        "action": "click_intent",
+        "intent": "Ланцюжок",
         "assertions": [
           {
             "type": "no_error"

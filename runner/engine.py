@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
+import re
 
 from config import MAX_COST_PER_RUN, REPORTS_DIR
 from transports.base import BaseTransport, BotResponse
@@ -490,12 +491,26 @@ class TestRunner:
         )
 
 
+    @staticmethod
+    def _normalize_for_match(s: str) -> str:
+        """Прибирає emoji, пунктуацію, пробіли; повертає lowercase. Для string-matching."""
+        # Remove emoji and symbols (broad unicode ranges)
+        s = re.sub(
+            r"[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F000-\U0001F2FF"
+            r"\u2190-\u21FF\u2300-\u23FF\u2B00-\u2BFF\uFE00-\uFE0F]",
+            "", s
+        )
+        # Remove punctuation and whitespace, keep letters/digits
+        s = re.sub(r"[^\w]", "", s, flags=re.UNICODE)
+        return s.lower().strip()
+
     async def _resolve_intent(self, intent: str, last_bot_message: str, transport) -> int | None:
-        """Викликає Haiku щоб вибрати кнопку по семантичному інтенту."""
+        """Знаходить кнопку за intent. Стратегія: exact→substring→Haiku (тільки якщо неоднозначно)."""
         import anthropic
         from config import INTENT_CONFIDENCE_THRESHOLD, INTENT_LOGS_DIR
         from telethon.tl.types import ReplyInlineMarkup
 
+        # Collect buttons from last bot messages
         button_texts = []
         if hasattr(transport, "_last_messages"):
             for msg in transport._last_messages:
@@ -508,6 +523,29 @@ class TestRunner:
             log.warning(f"_resolve_intent: no buttons for intent='{intent}'")
             return None
 
+        intent_norm = self._normalize_for_match(intent)
+        buttons_norm = [self._normalize_for_match(b) for b in button_texts]
+
+        # === Layer 2: exact normalized match ===
+        exact_matches = [i for i, bn in enumerate(buttons_norm) if bn == intent_norm]
+        if len(exact_matches) == 1:
+            idx = exact_matches[0]
+            log.info(f"  [intent exact] '{intent}' -> [{idx}] '{button_texts[idx]}' (normalized match)")
+            return idx
+        elif len(exact_matches) > 1:
+            log.warning(f"  [intent exact] ambiguous: {len(exact_matches)} buttons match '{intent}', falling back to Haiku")
+
+        # === Layer 3: substring match ===
+        if not exact_matches:
+            substr_matches = [i for i, bn in enumerate(buttons_norm) if intent_norm and intent_norm in bn]
+            if len(substr_matches) == 1:
+                idx = substr_matches[0]
+                log.info(f"  [intent substr] '{intent}' -> [{idx}] '{button_texts[idx]}' (substring match)")
+                return idx
+            elif len(substr_matches) > 1:
+                log.warning(f"  [intent substr] ambiguous: {len(substr_matches)} buttons contain '{intent}', falling back to Haiku")
+
+        # === Layer 4: Haiku (strict string matcher) ===
         cache_key = hashlib.md5(f"{intent}|{'|'.join(sorted(button_texts))}".encode()).hexdigest()
         INTENT_LOGS_DIR.mkdir(parents=True, exist_ok=True)
         cache_file = INTENT_LOGS_DIR / f"cache_{cache_key}.json"
@@ -517,13 +555,17 @@ class TestRunner:
             return cached["index"]
 
         formatted = "\n".join(f"[{i}] {t}" for i, t in enumerate(button_texts))
-        system = """Ти — вибиральник кнопок для QA-агента.
-Відповідай ЛИШЕ JSON без markdown: {"index": <число>, "confidence": <0.0-1.0>, "reason": "<5-10 слів українською>"}
-index — з наданого списку. confidence=1.0 точний збіг, 0.7-0.9 семантичний, <0.6 неоднозначно."""
+        system = """You are a STRING MATCHER for a QA test runner.
+Your ONLY job: find the button whose visible text (ignoring emoji, punctuation, and spacing) most closely matches or contains the TARGET STRING.
+DO NOT interpret what a user would want to do.
+DO NOT consider whether the action makes logical sense in context.
+DO NOT use the bot's previous message to infer intent.
+This is pure text matching — like fuzzy string search.
+Respond ONLY with JSON (no markdown): {"index": <int>, "confidence": <0.0-1.0>, "reason": "<short reason in Ukrainian>"}
+confidence=1.0 for exact match, 0.8-0.9 for clear substring/fuzzy, <0.6 if genuinely ambiguous."""
+        user = f"TARGET STRING: {intent}\n\nBUTTONS:\n{formatted}"
 
-        user = f"Повідомлення бота:\n{last_bot_message[:500]}\n\nКнопки:\n{formatted}\n\nМета: {intent}"
-        log_entry = {"intent": intent, "buttons": button_texts, "last_bot_message": last_bot_message[:200]}
-
+        log_entry = {"intent": intent, "buttons": button_texts, "layer": "haiku"}
         try:
             client = anthropic.Anthropic()
             for attempt in range(2):
@@ -535,13 +577,12 @@ index — з наданого списку. confidence=1.0 точний збіг
                     messages=[{"role": "user", "content": user}],
                 )
                 raw = resp.content[0].text.strip()
-                # Прибираємо markdown фенси якщо Haiku загорнув у ```json ... ```
                 if raw.startswith("```"):
                     raw = "\n".join(
                         line for line in raw.splitlines()
                         if not line.strip().startswith("```")
                     ).strip()
-                log.info(f"  [intent raw cleaned] {raw[:200]}")
+                log.info(f"  [intent haiku raw] {raw[:200]}")
                 parsed = _json.loads(raw)
                 index = int(parsed["index"])
                 confidence = float(parsed["confidence"])
@@ -550,13 +591,12 @@ index — з наданого списку. confidence=1.0 точний збіг
                     break
                 log.warning(f"_resolve_intent: out-of-range index {index}, attempt {attempt+1}")
             else:
-                log_entry["error"] = f"out-of-range after 2 attempts"
+                log_entry["error"] = "out-of-range after 2 attempts"
                 (INTENT_LOGS_DIR / f"fail_{cache_key}.json").write_text(_json.dumps(log_entry, ensure_ascii=False, indent=2))
                 return None
 
-            log.info(f"  [intent] '{intent}' -> [{index}] '{button_texts[index]}' conf={confidence:.2f} ({reason})")
+            log.info(f"  [intent haiku] '{intent}' -> [{index}] '{button_texts[index]}' conf={confidence:.2f} ({reason})")
             log_entry.update({"index": index, "confidence": confidence, "reason": reason})
-
             if confidence < INTENT_CONFIDENCE_THRESHOLD:
                 log.warning(f"  [intent] confidence {confidence:.2f} < threshold {INTENT_CONFIDENCE_THRESHOLD}")
                 log_entry["error"] = f"low confidence: {confidence}"
@@ -567,7 +607,7 @@ index — з наданого списку. confidence=1.0 точний збіг
             return index
 
         except Exception as e:
-            log.error(f"_resolve_intent error: {e}")
+            log.error(f"_resolve_intent haiku error: {e}")
             log_entry["error"] = str(e)
             (INTENT_LOGS_DIR / f"error_{cache_key}.json").write_text(_json.dumps(log_entry, ensure_ascii=False, indent=2))
             return None
