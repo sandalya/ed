@@ -59,6 +59,10 @@
           {
             "type": "has_buttons",
             "value": true
+          },
+          {
+            "type": "text_contains",
+            "value": "Плетіння"
           }
         ]
       },
@@ -72,6 +76,10 @@
           {
             "type": "has_buttons",
             "value": true
+          },
+          {
+            "type": "text_contains",
+            "value": "Довжина"
           }
         ]
       },
@@ -81,6 +89,10 @@
         "assertions": [
           {
             "type": "no_error"
+          },
+          {
+            "type": "text_contains",
+            "value": "Маса"
           }
         ]
       },
@@ -94,6 +106,10 @@
           {
             "type": "has_buttons",
             "value": true
+          },
+          {
+            "type": "text_contains",
+            "value": "Покриття"
           }
         ]
       },
@@ -107,6 +123,10 @@
           {
             "type": "has_buttons",
             "value": true
+          },
+          {
+            "type": "text_contains",
+            "value": "Застібка"
           }
         ]
       },
@@ -120,6 +140,10 @@
           {
             "type": "has_buttons",
             "value": true
+          },
+          {
+            "type": "text_contains",
+            "value": "Додатково"
           }
         ]
       },
@@ -129,6 +153,10 @@
         "assertions": [
           {
             "type": "no_error"
+          },
+          {
+            "type": "text_contains",
+            "value": "телефон"
           }
         ]
       },
@@ -142,6 +170,10 @@
           {
             "type": "has_buttons",
             "value": true
+          },
+          {
+            "type": "text_contains",
+            "value": "уточнити"
           }
         ]
       },
@@ -151,6 +183,22 @@
         "assertions": [
           {
             "type": "no_error"
+          },
+          {
+            "type": "text_contains",
+            "value": "Замовлення"
+          },
+          {
+            "type": "order_saved",
+            "file_path": "/home/sashok/.openclaw/workspace/insilver-v3/data/orders/orders.json",
+            "last_contains": {
+              "type": "ланцюжок",
+              "Плетіння": "Бісмарк",
+              "Довжина": "50см"
+            }
+          },
+          {
+            "type": "admin_received"
           }
         ]
       }
@@ -221,6 +269,10 @@
         "assertions": [
           {
             "type": "no_error"
+          },
+          {
+            "type": "text_contains",
+            "value": "касовано"
           }
         ]
       }
@@ -291,6 +343,10 @@
         "assertions": [
           {
             "type": "no_error"
+          },
+          {
+            "type": "text_contains",
+            "value": "Введіть"
           }
         ]
       }
@@ -379,6 +435,10 @@
         "assertions": [
           {
             "type": "no_error"
+          },
+          {
+            "type": "text_contains",
+            "value": "Введіть"
           }
         ]
       }
@@ -498,6 +558,10 @@
           {
             "type": "has_buttons",
             "value": true
+          },
+          {
+            "type": "text_contains",
+            "value": "коментар"
           }
         ]
       },
