@@ -1,0 +1,146 @@
+[
+  {
+    "id": "fc_card_mode_basic",
+    "category": "flashcards",
+    "context": "Flashcard mode: deep-link → mode picker → pick card → show answer → know → next card.",
+    "tags": ["flashcards", "card_mode"],
+    "steps": [
+      {
+        "action": "send",
+        "text": "/start fc_rag_retrieval-1",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "has_buttons", "value": true},
+          {"type": "button_count", "op": "gte", "value": 2},
+          {"type": "text_contains", "value": "rag"}
+        ]
+      },
+      {
+        "action": "click",
+        "button_data": "fc_mode_rag_retrieval-1_card",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "has_buttons", "value": true},
+          {"type": "button_text_contains", "value": "Показати"}
+        ]
+      },
+      {
+        "action": "click",
+        "button_data": "fc_show_",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "has_buttons", "value": true},
+          {"type": "button_text_contains", "value": "Знаю"},
+          {"type": "button_text_contains", "value": "Не знаю"}
+        ]
+      },
+      {
+        "action": "click",
+        "button_data": "fc_know_",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "has_buttons", "value": true},
+          {"type": "button_text_contains", "value": "Показати"}
+        ]
+      }
+    ],
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true
+    }
+  },
+  {
+    "id": "fc_quiz_mode_basic",
+    "category": "flashcards",
+    "context": "Quiz mode: deep-link → mode picker → pick quiz → click any option → verify feedback (Правильно/Неправильно) + Next button.",
+    "tags": ["flashcards", "quiz_mode"],
+    "steps": [
+      {
+        "action": "send",
+        "text": "/start fc_rag_retrieval-1",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "has_buttons", "value": true}
+        ]
+      },
+      {
+        "action": "click",
+        "button_data": "fc_mode_rag_retrieval-1_quiz",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "has_buttons", "value": true},
+          {"type": "button_count", "op": "gte", "value": 4}
+        ]
+      },
+      {
+        "action": "click",
+        "button_data": "fc_pick_",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "text_matches", "value": "(Правильно|Неправильно|правильн|неправильн)"},
+          {"type": "button_text_contains", "value": "Далі"}
+        ]
+      },
+      {
+        "action": "click",
+        "button_data": "fc_next_",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "has_buttons", "value": true},
+          {"type": "button_count", "op": "gte", "value": 4}
+        ]
+      }
+    ],
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true
+    }
+  },
+  {
+    "id": "fc_quiz_completion",
+    "category": "flashcards",
+    "context": "Повна quiz-сесія: 10 карток × (pick + next). Фінальний екран має показати статистику + retry/switch кнопки.",
+    "tags": ["flashcards", "completion"],
+    "steps": [
+      {"action": "send", "text": "/start fc_rag_retrieval-1", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_mode_rag_retrieval-1_quiz", "assertions": [{"type": "has_buttons", "value": true}]},
+
+      {"action": "click", "button_data": "fc_pick_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_next_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_pick_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_next_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_pick_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_next_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_pick_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_next_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_pick_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_next_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_pick_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_next_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_pick_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_next_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_pick_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_next_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_pick_", "assertions": [{"type": "no_error"}]},
+      {"action": "click", "button_data": "fc_next_", "assertions": [{"type": "no_error"}]},
+      {
+        "action": "click",
+        "button_data": "fc_pick_",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "text_matches", "value": "(Правильно|Неправильно|правильн|неправильн)"}
+        ]
+      },
+      {
+        "action": "click",
+        "button_data": "fc_next_",
+        "assertions": [
+          {"type": "no_error"},
+          {"type": "text_matches", "value": "(Завершено|Готово|результат|deck|карток)"},
+          {"type": "has_buttons", "value": true}
+        ]
+      }
+    ],
+    "expected_behavior": {
+      "should_respond_in_ukrainian": true
+    }
+  }
+]

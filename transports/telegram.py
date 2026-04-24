@@ -43,6 +43,22 @@ class TelegramTransport(BaseTransport):
             self._responses.append(event.message)
             self._response_event.set()
 
+        @self.client.on(events.MessageEdited(from_users=self._bot_entity.id))
+        async def on_bot_edit(event):
+            # Для FSM-флоу на edit_message_text (flashcards, exam)
+            # Замінюємо існуюче повідомлення з тим самим id на нову версію,
+            # або додаємо як нове якщо не знайдено.
+            edited = event.message
+            replaced = False
+            for i, m in enumerate(self._responses):
+                if getattr(m, "id", None) == edited.id:
+                    self._responses[i] = edited
+                    replaced = True
+                    break
+            if not replaced:
+                self._responses.append(edited)
+            self._response_event.set()
+
     async def send_message(self, text: str) -> BotResponse:
         return await self._send_and_collect(text)
 
